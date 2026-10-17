@@ -104,12 +104,38 @@ def main() -> int:
         sys.exit(f"ERROR: llama.cpp pin proof missing/mismatch (.strata-pin={pin}, expected {mo.group(1)})")
 
     # --- toolchain ---
+    # BUILD.json exists by the time a manifest is made (checked below) — its
+    # cuda_dirs name the EFFECTIVE compiler, which may differ from PATH-nvcc
+    # (--cmake-def CMAKE_CUDA_COMPILER=… override; e.g. uranus PATH=12.0,
+    # build=13.0). Record what actually compiled, not what PATH happens to say.
+    build_json = {}
+    bj_path = ROOT / "engine" / "BUILD.json"
+    if bj_path.exists():
+        try:
+            build_json = json.loads(bj_path.read_text())
+        except Exception:
+            build_json = {}
+    eff_nvcc = None
+    for d in (build_json.get("cuda_dirs") or []):
+        c = Path(d) / "nvcc"
+        if c.is_file():
+            eff_nvcc = str(c)
+            break
+
+    def venv_tool(name: str) -> str:
+        for d in (".venv-offline/bin", ".venv/bin"):
+            c = ROOT / d / name
+            if c.is_file() and os.access(c, os.X_OK):
+                return str(c)
+        return name   # PATH lookup inside tool_ver
+
     m["toolchain"] = {
         "python": platform.python_version(),
         "gcc": tool_ver(["gcc", "--version"], r"gcc \S+ ([0-9.]+)") or tool_ver(["gcc", "-dumpfullversion"]),
         "cmake": tool_ver(["cmake", "--version"], r"version ([0-9.]+)"),
-        "ninja": tool_ver(["ninja", "--version"], r"[0-9.]+"),
-        "nvcc": tool_ver(["nvcc", "--version"], r"release ([0-9.]+)"),
+        "ninja": tool_ver([venv_tool("ninja"), "--version"], r"[0-9.]+"),
+        "nvcc": tool_ver([eff_nvcc or "nvcc", "--version"], r"release ([0-9.]+)"),
+        "nvcc_path": eff_nvcc,
     }
 
     # --- deps (wheelhouse manifest) ---
@@ -145,8 +171,7 @@ def main() -> int:
     if not artifacts:
         sys.exit("ERROR: no engine/ artifacts — run tools/offline/build_engine.sh first")
     m["artifacts"] = artifacts
-    bj = ROOT / "engine" / "BUILD.json"
-    m["build"] = json.loads(bj.read_text()) if bj.exists() else None
+    m["build"] = build_json if build_json else None
     if m["build"] is None:
         sys.exit("ERROR: engine/BUILD.json missing — build stamp required (build_engine.sh writes it)")
 
