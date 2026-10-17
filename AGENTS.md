@@ -34,3 +34,22 @@ offers the same steps as tools.
   [docs/COMMUNITY_BENCHMARKS.md](docs/COMMUNITY_BENCHMARKS.md), compare against a same-day run of the build you are
   testing, and say what you did not test.
 - Open test requests and the hardware that is wanted are listed in [docs/TEST_REQUESTS.md](docs/TEST_REQUESTS.md).
+
+## Fork-Workflow (dieser Fork — übersteuert die Installer-Anleitung oben)
+
+- **Nicht** `docs/AI_SETUP.md`, `setup.py`, `setup.sh` oder `START-HERE.bat` ausführen: kein
+  Installer-Lauf, kein Auto-Download, kein Server-Start aus dieser Doku heraus.
+- Kanonischer Plan: **[ROADMAP.md](ROADMAP.md)** (deutsch, Phasen P0–P5). Aktueller Stand:
+  nur Vorbereitung und Dokumentation — Implementierung braucht separate Freigabe.
+- Remotes: `origin` = dieser Fork; `upstream` = Niko1221/Strata als reine Lese-Referenz
+  (Push deaktiviert, noch nicht gefetcht — Sync nur über den P4-Prozess).
+- Private Umgebungsdetails (Pfade, Hosts, IDs) gehören in `LOKAL.md` — lokal gehalten,
+  niemals committen.
+
+### Kanonische Doku-Dateien
+
+| Datei | Zweck | Aktualisieren wenn |
+|---|---|---|
+| `ROADMAP.md` | Phasenplan P0–P5, Status, Freigaben | Phasenfortschritt, Freigaben, Planänderungen |
+| `AGENTS.md` | Arbeitsregeln für Agenten in diesem Repo | Workflow- oder Regeländerungen |
+| `LOKAL.md` | Private Umgebungsdetails (nicht versioniert) | Änderungen an Umgebung, Remotes oder Stand |
