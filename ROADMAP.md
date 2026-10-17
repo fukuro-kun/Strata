@@ -128,20 +128,21 @@ keine automatische Synchronisation eingerichtet.
 **Akzeptanz:** Nur nach explizitem Go; alle genannten Testbereiche grün;
 Frontend bleibt eine separat ersetzbare Komponente.
 
-### LAN-Umstellung auf den Fork (Session 006) — **VORBEREITET 2026-10-17**
+### LAN-Umstellung auf den Fork (Session 006) — **uranus LIVE 2026-10-17**
 
 - [x] Deploy-Matrix über alle Hosts; produktive Strata-Endpunkte:
       uranus :18086 (InferenzQuelle `uranus-swift15`, System-Unit
       `strata-swift-uranus.service`) und eris :8080 (manuell, keine Unit)
 - [x] Fork-Checkout + P1-Engine-Build + P2-Venv + P3-Deploy auf uranus
       (sm_89/CUDA-13.0) und eris (sm_86/CUDA-12.4) — Manifest verifiziert,
-      `current`-Symlink gesetzt, User-Unit installiert aber nicht gestartet
-- [x] InferenzQuelle-Dienstdefinition auf das Fork-Deploy umgeschrieben
-      (InferenzQuelle-Repo, Branch `feat/strata-fork-deploy`)
-- [ ] **Offen — blockiert durch laufende SC117-Evals auf beiden GPUs:**
-      Service-Switch, `/slots`-Probe + echte Chat-Completion,
-      Rollback-Übung pro Host. Ausführung erst nach Eval-Ende (eine
-      parallel gestartete Strata-Instanz würde den Evals VRAM entziehen).
+      `current`-Symlink gesetzt
+- [x] **uranus umgestellt und abgenommen:** System-Unit läuft auf
+      `~/strata-deploy/current/run.sh`; `/slots` + echte Chat-Completion
+      verifiziert, janus-Router meldet `uranus-swift15` healthy; Rollback
+      auf den alten Stack real geübt und zurückgewechselt
+- [ ] **eris offen** — SC117-Eval :8081 lief bis zuletzt; nach Eval-Ende:
+      `systemctl --user enable --now strata-fork`, dieselbe Abnahme +
+      Rollback-Übung (Runbook `docs/DEPLOYMENT.md`)
 - [ ] ganymed: kein Strata-Dienst (Modellarchiv) — nichts umzustellen
 
 Details und Switch-Runbook: `docs/SOLO_SESSION_006_lan_umstellung.md`,

@@ -56,18 +56,35 @@ Doku-Änderungen dort oder `feat/lan-umstellung`).
   auf Existenz geprüft — keine fehlenden Inputs
 - User-Unit `strata-fork.service` installiert, **nicht gestartet**
 
-### Nicht geschaltet (Grund: aktive Evals auf den GPUs)
+### uranus: **UMGESTELLT + VERIFIZIERT** (Eval war beendet, GPUs frei)
 
-Live-Start einer zweiten Strata-Instanz würde den laufenden SC117-Evals
-VRAM entziehen — bewusst ausgelassen. Offen bis Eval-Ende:
+Der SC117-Eval auf uranus endete während der Session; der Switch wurde
+ausgeführt und vollständig abgenommen:
 
-- `strata-swift-uranus.service` (System) durch die Fork-Variante
-  ersetzen (liegt in InferenzQuelle `feat/strata-fork-deploy`),
-  `sudo systemctl daemon-reload + start`, `/slots`-Probe +
-  Chat-Completion gegen :18086
-- eris: `systemctl --user start strata-fork` (Config port 8080) +
-  dieselbe Abnahme
-- Rollback-Übung pro Host (`rollback.sh --deploy-root ~/strata-deploy`)
+- `strata-swift-uranus.service` (System-Unit, Fork-Fassung aus
+  InferenzQuelle `feat/strata-fork-deploy`) installiert →
+  `ExecStart=~/strata-deploy/current/run.sh --host 0.0.0.0 --port 18086`
+- `/slots` antwortet InferenzQuelle-konform (1 Slot, ctx 262144, idle)
+- Echte Chat-Completion: „Ja, der Fork läuft." (finish=stop)
+- janus-Router `:8010/endpoints`: `uranus-swift15` **healthy: true**
+- Prozess läuft aus `~/strata-deploy/…` — kein stiller Fallback auf den
+  Upstream-Checkout
+- **Rollback real geübt:** alte Unit zurückgespielt → alter Stack
+  (`~/git/strata`) antwortete wieder auf :18086 → wieder auf Fork
+  gewechselt und erneut verifiziert. Der Dienst bleibt `disabled` +
+  läuft manuell wie zuvor (On-Demand-Host; Lifecycle via Host-Agent).
+
+**Fund bei der Rollback-Übung:** die alte Unit trug `--no-browser` —
+ein Flag, das das heutige `serve/server.py` nicht mehr kennt (Browser
+öffnet nur noch mit `--open`). Der Rollback-Pfad wäre genau daran
+gescheitert; bereinigt in der archivierten Fassung.
+
+### eris: weiterhin eval-blockiert
+
+Eval auf :8081 läuft noch. Nach Eval-Ende:
+`systemctl --user enable --now strata-fork` (Config-Port 8080) +
+dieselbe Abnahme (`/slots` + Completion) + Rollback-Übung.
+Runbook: `docs/DEPLOYMENT.md`.
 
 ### Fixes unterwegs (auf `feat/p6-lan-umstellung`)
 
@@ -87,13 +104,12 @@ VRAM entziehen — bewusst ausgelassen. Offen bis Eval-Ende:
 - [x] 4. Deploy-Pfad: versioniertes Verzeichnis + current-Symlink;
        uranus-System-Unit als Fork-Variante in InferenzQuelle-Repo
        vorbereitet (`feat/strata-fork-deploy`)
-- [ ] 5. Abnahme `/slots` + Chat-Completion — **blockiert durch laufende
-       Evals**, nach Eval-Ende
-- [ ] 6. Rollback-Verifikation — ebenfalls nach Eval-Ende (Mechanik selbst
-       ist P3-getestet)
-- [x] 7. Doku: InferenzQuelle-Unit + Trilium-Updates (s. unten) +
-       DEPLOYMENT.md/LOKAL.md
-- [ ] 8. Review → Commit → Push
+- [x] 5. Abnahme `/slots` + Chat-Completion — **uranus bestanden**
+       (echte Antwort, Router healthy); eris nach Eval-Ende
+- [x] 6. Rollback-Verifikation — **uranus real geübt** (Unit-Rollback auf
+       alten Checkout-Stack, verifiziert, zurück auf Fork); eris offen
+- [x] 7. Doku: InferenzQuelle-Unit + Trilium-Updates + DEPLOYMENT.md/LOKAL.md
+- [x] 8. Review → Commit → Push (`feat/p6-lan-umstellung`)
 
 ## Verifikations-Strategie
 
