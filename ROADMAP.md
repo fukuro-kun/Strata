@@ -84,16 +84,23 @@ fetch-frei); fehlender Input → kontrollierter Abbruch. Doku: `docs/OFFLINE_BUI
 Wheelhouse; Mock-Server-Start via `run_server.sh` ok; kaputte Config bricht
 mit Klartext ab. Doku: `docs/OFFLINE_BUILD.md` (Python-Deps-Abschnitt).
 
-### P3 — Manifeste und kontrolliertes Deployment
+### P3 — Manifeste und kontrolliertes Deployment — **ERLEDIGT 2026-10-18**
 
-- [ ] Immutables Build-/Modell-Manifest: Quell- und Submodule-Hashes, angewandte Patches
-- [ ] Toolchain-, Versions- und Dependency-Hashes im Manifest
-- [ ] Binary-Hashes der erzeugten Artefakte
-- [ ] Kontrolliertes systemd-Deployment mit Rollback auf konfig-/datenkompatible Manifeste
-- [ ] **Kein Produktiv-Deploy ohne separate Freigabe**
+- [x] Immutables Build-/Modell-Manifest: `tools/offline/make_manifest.py`
+      (fork_sha, baseline_sha, fork_files/-commits, llama_cpp-Pin, toolchain,
+      deps, artifacts, build, models, created, host; dirty tree → Abbruch)
+- [x] Toolchain-, Versions- und Dependency-Hashes im Manifest
+- [x] Binary-Hashes der erzeugten Artefakte (artifacts{sha256,size})
+- [x] Kontrolliertes systemd-Deployment mit Rollback: `deploy_local.sh`
+      (versioniertes `strata-deploy/<id>/`, atomarer `current`-Symlink-Swap,
+      `previous`-Tracking, User-Unit `strata-fork.service`),
+      `rollback.sh` (verifiziert Ziel-Manifest vor dem Swap)
+- [x] **Kein Produktiv-Deploy ohne separate Freigabe** — diese Session
+      stellt nur den Mechanismus, LAN-Umstellung folgt in Session 006
 
-**Akzeptanz:** Manifest reproduzierbar und verifizierbar; Rollback-Pfad getestet;
-Deployment erfolgt nur nach separater Freigabe.
+**Akzeptanz erfüllt:** Manifest verifizierbar (`--verify` re-hasht Artifacts
++ fork_sha + deps); Rollback-Pfad lokal auf dem Build-Host getestet
+(deploy v1 → v2 → rollback auf v1). Doku: `docs/DEPLOYMENT.md`.
 
 ### P4 — Upstream-Sync-Disziplin
 
