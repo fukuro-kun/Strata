@@ -102,17 +102,18 @@ mit Klartext ab. Doku: `docs/OFFLINE_BUILD.md` (Python-Deps-Abschnitt).
 + fork_sha + deps); Rollback-Pfad lokal auf dem Build-Host getestet
 (deploy v1 → v2 → rollback auf v1). Doku: `docs/DEPLOYMENT.md`.
 
-### P4 — Upstream-Sync-Disziplin
+### P4 — Upstream-Sync-Disziplin — **ERLEDIGT 2026-10-18**
 
-- [ ] Upstream-Fetch nur bewusst angestoßen, auf eigenem Integrations-Branch
-- [ ] Diff-Review von `src/`, `include/`, `serve/`, Build-Dateien, Abhängigkeiten
-      **und** Agenten-Anweisungen (alle relevanten Bereiche, nicht nur Installer)
-- [ ] Tests vor Promotion
-- [ ] Kein Auto-Pull/Auto-Update
+- [x] Upstream-Fetch nur bewusst angestoßen: erster Fetch 2026-10-17,
+      `upstream/main` = `296b59d2…` (exakt P0-Baseline, Tag v0.1.44.1)
+- [x] Diff-Review: 0 Commits Drift — Bericht
+      `docs/upstream-reviews/REVIEW_2026-10-17_296b59d2.md`
+- [x] Tests vor Promotion: Prozess in `docs/UPSTREAM_SYNC.md` verankert
+      (kein Merge nötig — keine Divergenz)
+- [x] Kein Auto-Pull/Auto-Update; `upstream`-Push bleibt `PUSH_DISABLED`
 
-**Akzeptanz:** Jede Upstream-Übernahme hat dokumentiertes Diff-Review und
-Testlauf; keine automatische Synchronisation. Remote `upstream` ist angelegt,
-aber bis dahin un-gefetched.
+**Akzeptanz erfüllt:** Prozess-Doku + erster dokumentierter Review vorhanden;
+keine automatische Synchronisation eingerichtet.
 
 ### P5 — OPTIONAL: Robert-C++-Frontend
 

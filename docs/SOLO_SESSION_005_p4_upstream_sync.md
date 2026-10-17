@@ -20,22 +20,22 @@ aller relevanten Bereiche, Testlauf, kein Auto-Pull. Ergebnis:
 
 ## Schritte
 
-- [ ] 1. Branch `feat/p4-upstream-sync` von `feat/p3-manifeste`
-- [ ] 2. `git fetch upstream` (bewusst, dokumentiert: Datum, alter vs.
-       neuer `upstream/main`-Head)
-- [ ] 3. Diff-Review `296b59d2..upstream/main`: `git log`, `git diff
-       --stat`, dann fileweise Review der relevanten Bereiche; Subagent
-       für die Massen-Dateien, Main-Agent für setup.py/CMake/Agenten-Doku
-- [ ] 4. Review-Bericht `docs/upstream-reviews/REVIEW_<datum>_<sha>.md`:
-       Änderungen kategorisiert (engine/server/build/deps/agent-instructions/
-       models-pins), Risiko-Einschätzung, Promotions-Empfehlung
-- [ ] 5. `docs/UPSTREAM_SYNC.md` schreiben: Prozess (Fetch → Branch →
-       Review → Tests → Promotion), Verantwortlichkeiten, "kein Auto-Sync"
-- [ ] 6. Tests: falls Review promotion-reif → Test-Setup-Skripte
-       (`tools/test_setup_*.py`) laufen gegen den reviewed Stand (auf
-       Integrations-Branch, nicht gemerged)
-- [ ] 7. ROADMAP P4-Checkboxen abhaken
-- [ ] 8. Review → Commit → Push
+- [x] 1. Branch `feat/p4-upstream-sync` von `feat/p3-manifeste`
+- [x] 2. `git fetch upstream` — **Ergebnis: no drift**;
+       `upstream/main` = `296b59d2…` = P0-Baseline = Tag `v0.1.44.1`
+       (HEAD-Merge vom 2026-10-14). Wir sitzen auf dem neuesten
+       Upstream-Stand; Tags vollständig gefetcht
+- [x] 3. Diff-Review `296b59d2..upstream/main`: `git log` → **0 Commits**,
+       nichts zu kategorisieren — Bericht dokumentiert das pro Bereich
+- [x] 4. Review-Bericht: `docs/upstream-reviews/REVIEW_2026-10-17_296b59d2.md`
+       (no-drift, Prozess-Nachweis, Verifikations-Kommandos)
+- [x] 5. `docs/UPSTREAM_SYNC.md`: Prozess Fetch → Integrations-Branch →
+       Kategorien-Review → Tests → Promotion; Verbote (kein Auto-Pull,
+       kein upstream-Push, kein Pin-Wechsel ohne Bericht)
+- [x] 6. Tests: n/a — keine Divergenz zu mergen (Integrations-Branch-
+       Lauf entfällt bei 0 Commits; beim ersten realen Sync Pflicht)
+- [x] 7. ROADMAP P4 abgehakt
+- [x] 8. Review → Commit → Push
 
 ## Verifikations-Strategie
 
