@@ -111,6 +111,10 @@ mit Klartext ab. Doku: `docs/OFFLINE_BUILD.md` (Python-Deps-Abschnitt).
 - [x] Tests vor Promotion: Prozess in `docs/UPSTREAM_SYNC.md` verankert
       (kein Merge nötig — keine Divergenz)
 - [x] Kein Auto-Pull/Auto-Update; `upstream`-Push bleibt `PUSH_DISABLED`
+- [x] **Push-Gate** (2026-10-17, mit Server-Mirror verschärft): unreviewter
+      Upstream-Stand wird **nie** auf einen `origin`-Branch gepusht — der
+      Mirror macht ihn sofort öffentlich. Clean-Verdict-Kriterien in
+      `docs/UPSTREAM_SYNC.md` §Push-Gate
 
 **Akzeptanz erfüllt:** Prozess-Doku + erster dokumentierter Review vorhanden;
 keine automatische Synchronisation eingerichtet.

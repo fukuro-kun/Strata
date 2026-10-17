@@ -45,7 +45,9 @@ offers the same steps as tools.
   `github` = fukuro-kun/Strata als reiner Mirror (serverseitiger Push-Mirror
   auf europa spiegelt jeden Push — nichts direkt auf `github` pushen);
   `upstream` = Niko1221/Strata als reine Lese-Referenz (Push deaktiviert —
-  Sync nur über den P4-Prozess).
+  Sync nur über den P4-Prozess). **Push-Gate:** unreviewter Upstream-Stand
+  wird niemals auf einen `origin`-Branch gepusht — der Mirror macht ihn
+  sofort öffentlich; Regeln in `docs/UPSTREAM_SYNC.md` §Push-Gate.
 - Private Umgebungsdetails (Pfade, Hosts, IDs) gehören in `LOKAL.md` — lokal gehalten,
   niemals committen.
 
