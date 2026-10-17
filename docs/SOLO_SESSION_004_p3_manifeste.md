@@ -20,21 +20,39 @@ erteilt, aber erst nach P4). Branch: `feat/p3-manifeste`.
 
 ## Schritte
 
-- [ ] 1. Branch `feat/p3-manifeste` von `feat/p2-python-deps`
-- [ ] 2. `tools/offline/make_manifest.py` schreiben + auf P1/P2-Artefakte
-       anwenden → erste MANIFEST.json
-- [ ] 3. `tools/offline/deploy_local.sh`: legt versioniertes
-       Artefakt-Verzeichnis an, kopiert Engine+venv-Ref+Config, setzt
-       `current`-Symlink atomar
-- [ ] 4. `tools/offline/rollback.sh`: Symlink zurück auf vorheriges
-       Manifest-Verzeichnis + Service-Restart
-- [ ] 5. systemd-Unit-Template `tools/offline/strata.service.in`
-       (%h-fähig, ExecStart=run_server.sh-Pfad aus Manifest)
-- [ ] 6. Rollback-Test lokal: deploy v1 → deploy v2 (Dummy-Artefakt oder
-       Re-Deploy) → rollback → Dienst zeigt v1-Stand
-- [ ] 7. Doku: `docs/DEPLOYMENT.md` (Manifest-Format, Deploy-Pfad,
-       Rollback, Regel: Fork-only-Deployments) + ROADMAP P3 ✓
-- [ ] 8. Review → Commit → Push
+- [x] 1. Branch `feat/p3-manifeste` von `feat/p2-python-deps`
+- [x] 2. `tools/offline/make_manifest.py` schreiben + auf P1/P2-Artefakte
+       anwenden → erste MANIFEST.json (fork_sha, baseline_diff, llama-Pin,
+       toolchain, deps, artifacts, build, venv-pip-freeze, models)
+- [x] 3. `tools/offline/deploy_local.sh`: legt versioniertes
+       Artefakt-Verzeichnis an, kopiert Engine+Config (exe/cwd umgebogen),
+       setzt `current`-Symlink atomar; Wheelhouse-Manifest-Verify vorab
+- [x] 4. `tools/offline/rollback.sh`: verifiziert Ziel-Manifest VOR dem
+       Swap (driftendes Ziel → Abbruch), Symlink zurück + Service-Restart
+- [x] 5. systemd-Unit: von `deploy_local.sh` generiert nach
+       `~/.config/systemd/user/strata-fork.service`
+       (ExecStart=`current/run.sh` — Restart folgt dem Zeiger)
+- [x] 6. Rollback-Test lokal: deploy 17e1512d → cad9670b → cad9670b':
+       Rollback auf **anderen** fork_sha → korrekt ABGELEHNT (Manifest-
+       Verify: "fork_sha manifest 17e1512d, checkout cad9670b");
+       Rollback auf **gleichen** SHA → verifiziert + geswappt;
+       User-Unit sichtbar via `systemctl --user cat` (nicht gestartet —
+       kein Modell auf hydra, plangemäß)
+- [x] 7. Doku: `docs/DEPLOYMENT.md` geschrieben + ROADMAP P3 ✓
+- [x] 8. Review → Commit → Push
+
+**Review-Nachlauf (review-swe):** 7 echte Befunde, alle gefixt:
+- `--verify`-Fallback auf Repo-Artefakte maskierte fehlende Deploy-Dateien
+  (Rollback hätte auf unvollständiges Verzeichnis geswappt) → Artefakte
+  müssen NEBEN dem Manifest liegen
+- `run()` schluckte git-Fehler → stille Provenienz-Lügen; jetzt Abbruch
+- fehlender `.strata-pin` schrieb Manifest mit `pin_ok:false` → jetzt
+  fail-closed (sonst wäre der Stand im Rollback unbenutzbar)
+- `deploy_local.sh` verifiziert jetzt das Wheelhouse-Manifest vorab
+- Config-Rewrite: staged-File-Existenz für exe/vision.exe geprüft
+- venv-Drift erfassbar: `venv.pip_freeze_sha256` im Manifest + Verify
+- Deploy-ID-Kollision, Orphan-DEST (trap), `ln -sfnT`, `--deploy-root`
+  für rollback, `--service`-Suffix-Normalisierung, positional-Guards
 
 ## Verifikations-Strategie
 
