@@ -12,8 +12,16 @@ stehen in `LOKAL.md` (lokal, nicht versioniert). Arbeitsregeln: `AGENTS.md`.
 
 ## Aktueller Status
 
-**Nur Vorbereitung und Dokumentation.** Implementierung ist ausdrücklich
-**nicht** autorisiert — jede Phase braucht eine eigene Freigabe.
+**Freigabe erteilt 2026-10-17 (Entscheidungs-Interview):** Phasen P0–P4
+werden **vollständig autonom** in einer Solo-Session durchgearbeitet; P5 wird
+vorbereitend evaluiert (Evaluierungs-Dokument, keine Implementierung).
+Zusätzlich freigegeben: **Umstellung bestehender Strata-Deployments im LAN
+auf diesen Fork** nach Abschluss von P4 — mit Rollback-Bereitstellung — sowie
+die Festlegung dieser Deployment-Regel in allen Deploy-Dokus und
+Trilium-Notes.
+
+Einzelheiten: `docs/SOLO_SESSION_OVERVIEW.md` und die verketteten
+`docs/SOLO_SESSION_*.md`-Pläne.
 
 - Erworbener Stand (Inventar-Baseline): `296b59d2f73c8f04a805df29c2fa97655adace78`
   auf Default-Branch `main` zum Klon-Zeitpunkt.
@@ -110,10 +118,14 @@ Frontend bleibt eine separat ersetzbare Komponente.
 - **Forgejo-Mirror**: optionaler Zukunftsschritt. Die kanonische Remote-Rolle
   muss **vor** einem Wechsel entschieden werden.
 
-## Explizit NICHT jetzt (keine Implementierung)
+## Weiterhin verboten (trotz Freigabe P0–P4)
 
-- Keine Skripte oder Config-/Code-Änderungen
-- Keine CMake-/Server-/setup-Modifikationen
-- Keine Dependency-Downloads außer dem Repository-Clone
-- Kein aktiver Remote-Sync (`upstream` angelegt, un-gefetched)
-- Keine Service-Änderungen
+- Keine Auto-Downloads oder Fallback-Beschaffung in eigenen Pfaden —
+  Beschaffung nur bewusst, dokumentiert, gepinnt
+- Keine Modifikation von Upstream-Engine-Code über die Roadmap-Ziele hinaus
+  (`serve/` und Engine bleiben upstream-nah)
+- Kein automatischer Upstream-Sync (Cron/Timer) — nur bewusst angestoßen (P4)
+- Kein Push nach `upstream` (Remote bleibt push-gesperrt)
+- Keine Produktiv-Umstellung vor Abschluss der jeweiligen Phase bzw. vor P4
+  für die LAN-Umstellung; jede Umstellung mit dokumentiertem Rollback-Pfad
+- Keine Auth-/Host-/Key-Änderungen (zurückgestellt, siehe oben)
