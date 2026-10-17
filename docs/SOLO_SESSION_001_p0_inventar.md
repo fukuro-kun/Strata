@@ -37,7 +37,11 @@ alle abgehakt. Branch: `feat/p0-inventar`.
 - [x] 7. AGENTS.md Doku-Tabelle erweitert; ROADMAP P0 als ERLEDIGT markiert,
        Status-Absatz auf verifizierte Pin-Doku umgeschrieben
 - [x] 8. Trilium-Verweis-Note `dfPCN7ricKlc` unter `TaWve7nWU3kF` angelegt
-- [ ] 9. Review → Commit → Push `feat/p0-inventar`
+- [x] 9. Review → Commit `docs: P0-Inventar und verifizierte Baseline-Pin`
+       → Push `feat/p0-inventar` ✓
+- [ ] 10. Nachlauf: SHA256SUMS-Manifeste (eris/uranus, laufend) nach
+        `~/strata-diagnose-20261015/fork-p0/` einsammeln — async, kein
+        Repo-Artefakt
 
 ## Verifikations-Strategie
 
