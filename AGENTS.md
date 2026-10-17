@@ -42,9 +42,10 @@ offers the same steps as tools.
 - Kanonischer Plan: **[ROADMAP.md](ROADMAP.md)** (deutsch, Phasen P0–P5). Aktueller Stand:
   nur Vorbereitung und Dokumentation — Implementierung braucht separate Freigabe.
 - Remotes: `origin` = dieser Fork auf dem Forgejo im LAN (`europa`, kanonisch);
-  `github` = fukuro-kun/Strata als reiner Mirror (Push läuft automatisch mit, da
-  `origin` beide Push-URLs trägt); `upstream` = Niko1221/Strata als reine
-  Lese-Referenz (Push deaktiviert — Sync nur über den P4-Prozess).
+  `github` = fukuro-kun/Strata als reiner Mirror (serverseitiger Push-Mirror
+  auf europa spiegelt jeden Push — nichts direkt auf `github` pushen);
+  `upstream` = Niko1221/Strata als reine Lese-Referenz (Push deaktiviert —
+  Sync nur über den P4-Prozess).
 - Private Umgebungsdetails (Pfade, Hosts, IDs) gehören in `LOKAL.md` — lokal gehalten,
   niemals committen.
 
