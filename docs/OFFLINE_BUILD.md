@@ -63,6 +63,41 @@ Was das Skript tut:
   schreibt `engine/BUILD.json` im Upstream-Format + Fork-Felder
   (`source: "local-fork"`, `ggml_commit`, `ggml_dir`).
 
+## Python-Abhängigkeiten (P2)
+
+Die Server-/Toolchain-Python-Deps laufen aus einem lokalen Wheelhouse —
+`setup.py` wird nie aufgerufen, PyPI wird nie kontaktiert.
+
+```bash
+# Beschaffung (bewusst, einmalig; ggf. je Interpreter-Version einmal):
+tools/offline/fetch_wheels.sh                      # für dieses Python
+tools/offline/fetch_wheels.sh --for-python 3.12    # für ein anderes (binary-only)
+
+# venv aus dem Wheelhouse (offline, --no-index = fail closed):
+tools/offline/make_venv.sh                         # CUDA-Wheels auto nach nvcc
+tools/offline/make_venv.sh --cuda 12|none          # oder explizit
+
+# Start ohne setup.py:
+tools/offline/run_server.sh strata-<modell>.json [--port N]
+tools/offline/run_server.sh --mock --port N        # API-Smoke ohne Engine
+# Kalibrierung:
+tools/offline/calibrate.sh strata-<modell>.json
+# Neue Run-Config auf einem frischen Host:
+python3 tools/offline/make_config.py NAME --pack DIR --native GGUF ...
+```
+
+- `wheelhouse/*.whl` sind gitignored (LAN-Kopie via rsync/Netzlaufwerk);
+  `wheelhouse/MANIFEST.sha256` ist committed — `make_venv.sh` verifiziert das
+  Wheelhouse dagegen **vor** jeder Installation.
+- requirements.txt-Pins **und** die CUDA-Laufzeit-Wheels (`nvidia-cublas`/
+  `nvidia-cuda-runtime`, cu13 und cu12) werden aus `setup.py` gelesen —
+  eine Pin-Quelle.
+- `run_server.sh` validiert die Config (exe existiert, Datei-Flags in args
+  wie `--pack`/`--native`/`--mtp` geprüft — `--mtp <n>` für own-path-Modelle
+  wird korrekt übersprungen, tokenizer mit vocab/merges/token_type) und
+  bricht bei fehlendem Input mit Klartext ab — nie ein Fallback auf
+  setup.py.
+
 ## Fail-closed-Garantien
 
 - `CMakeLists.txt` + `sycl/CMakeLists.txt`: leeres `STRATA_GGML_DIR` →

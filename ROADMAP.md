@@ -67,16 +67,22 @@ Evidenz-Ablage (Bewusst nicht committed — Repo-Regel).
 **Akzeptanz erfüllt:** Build lief komplett ohne Netz-Fetch (Configure-Log
 fetch-frei); fehlender Input → kontrollierter Abbruch. Doku: `docs/OFFLINE_BUILD.md`.
 
-### P2 — Python-Abhängigkeiten lokal bereitstellen
+### P2 — Python-Abhängigkeiten lokal bereitstellen — **ERLEDIGT 2026-10-18**
 
-- [ ] Exakte Wheels mit Hashes lokal bereitstellen
-- [ ] `serve/` vorerst unverändert beibehalten
-- [ ] `setup.py` aus unseren Build-/Start-/Update-/Kalibrierungspfaden entfernen
-- [ ] Kein Auto-Fallback/Auto-Download in eigenen Pfaden
-- [ ] Upstream-Engine und MultiGPU-Funktionalität möglichst unverändert lassen
+- [x] Exakte Wheels mit Hashes lokal bereitstellen: `wheelhouse/` (gitignored)
+      + `wheelhouse/MANIFEST.sha256` (committed); Beschaffung via
+      `tools/offline/fetch_wheels.sh` (cp312 + cp314 + CUDA-13/12-Runtime-Wheels)
+- [x] `serve/` vorerst unverändert beibehalten
+- [x] `setup.py` aus unseren Build-/Start-/Update-/Kalibrierungspfaden entfernt:
+      `tools/offline/make_venv.sh` (--no-index, Manifest-Verify vor Install),
+      `run_server.sh` (Config-Validierung, fail closed), `calibrate.sh`,
+      `make_config.py` (minimaler Config-Writer)
+- [x] Kein Auto-Fallback/Auto-Download in eigenen Pfaden
+- [x] Upstream-Engine und MultiGPU-Funktionalität möglichst unverändert lassen
 
-**Akzeptanz:** Start/Kalibrierung laufen ohne `setup.py` und ohne Netz; Imports
-resolven nur gegen lokale Wheels mit verifizierten Hashes.
+**Akzeptanz erfüllt:** venv-Install lief mit `--no-index` rein aus dem
+Wheelhouse; Mock-Server-Start via `run_server.sh` ok; kaputte Config bricht
+mit Klartext ab. Doku: `docs/OFFLINE_BUILD.md` (Python-Deps-Abschnitt).
 
 ### P3 — Manifeste und kontrolliertes Deployment
 

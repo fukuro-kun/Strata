@@ -20,23 +20,50 @@ unverändert, Upstream-Engine und MultiGPU unverändert. Branch:
 
 ## Schritte
 
-- [ ] 1. Branch `feat/p2-python-deps` von `feat/p1-offline-build`
-- [ ] 2. `tools/offline/fetch_wheels.sh`: `pip download --dest wheelhouse/`
-       aus `requirements.txt` + CUDA-Wheels; danach `sha256sum` →
-       `wheelhouse/MANIFEST.sha256` (committed)
-- [ ] 3. `tools/offline/make_venv.sh`: venv erstellen + `pip install
-       --no-index --find-links wheelhouse/ -r requirements.txt`
-       (**--no-index = fail closed**, kein PyPI-Fallback)
-- [ ] 4. `tools/offline/run_server.sh`: venv-Python + `serve/server.py`
-       mit lokalem Engine-Binary; env `STRATA_*` nur lokal; klare
-       Fehlermeldungen bei fehlendem Binary/Modell/venv
-- [ ] 5. `tools/offline/calibrate.sh` (falls anwendbar): Offline-Aufruf
-       der Pack-/Kalibrierungs-Tools ohne setup.py — prüfen welche
-       `tools/`-Skripte der "Kalibrierungspfad" tatsächlich nutzt
-- [ ] 6. Import-Resolutions-Test: venv ohne Netz → `python -c "import
-       numpy, jinja2, requests, ..."` + Server-Start-Probe
-- [ ] 7. Doku: OFFLINE_BUILD.md erweitern (Deps-Kapitel) + ROADMAP P2 ✓
-- [ ] 8. Review → Commit → Push
+- [x] 1. Branch `feat/p2-python-deps` von `feat/p1-offline-build`
+- [x] 2. `tools/offline/fetch_wheels.sh`: `pip download --dest wheelhouse/`
+       aus `requirements.txt` + CUDA-Wheels (Pins aus setup.py gelesen);
+       danach `sha256sum` → `wheelhouse/MANIFEST.sha256` (committed).
+       **Real:** cp314-Satz (hydra/eris) + cp312-Satz (uranus,
+       `--for-python 3.12 --only-binary`) + cu13- und cu12-Runtime-Sätze —
+       25 Wheels, 1,1 GB
+- [x] 3. `tools/offline/make_venv.sh`: venv `.venv-offline` + `pip install
+       --no-index --find-links wheelhouse/` (**fail closed**), verifiziert
+       `MANIFEST.sha256` vor der Installation, `--cuda auto|13|12|none`
+       installiert die setup.py-gepinnten Runtime-Wheels
+- [x] 4. `tools/offline/run_server.sh`: venv-Python + `serve/server.py`
+       mit Config-Validierung (exe/args-Pfade/vocab.json), `--mock`-Modus
+       für API-Smoke ohne Engine
+- [x] 5. `tools/offline/calibrate.sh`: dünner Wrapper um upstream
+       `tools/calibrate.py <config>` (misst --pcie-frac/--spec-min-p/
+       --pool-workers; setup.py --calibrate speichert zusätzlich —
+       Fork-Weg: Werte bewusst ins Config übernehmen)
+- [x] 6. Import-Test: venv → `import numpy, jinja2, requests, yaml, tqdm,
+       PIL, psutil, regex` ok; Mock-Server auf :18123 startet und
+       antwortet (`ready: http://127.0.0.1:18123/v1`); kaputte Config →
+       Klartext-Abbruch; `make_config.py` schreibt valide strata-*.json
+- [x] 7. Doku: OFFLINE_BUILD.md Python-Deps-Abschnitt + ROADMAP P2 ✓
+- [x] 8. Review → Commit → Push
+
+**Review-Nachlauf (review-swe):** 4 echte Befunde gefunden und gefixt:
+- `run_server.sh`-Validator: `--mtp <count>` (own-path qwen36-Configs)
+  wurde fälschlich als Datei geprüft → numerische Werte übersprungen;
+  weitere Datei-Flags ergänzt (`--native-dense-gguf`, `--embd-gguf`,
+  `--expert-profile`, `--draft`, `--control-vector-scaled` file:scale);
+  Tokenizer prüft jetzt vocab.json+merges.txt+token_type.json;
+  relative Pfade resolven wie die echten Consumer (exe/args → cfg[cwd],
+  tokenizer → Server-cwd)
+- `calibrate.sh`: relative Config-Pfade brachen nach `cd` → absolut
+  aufgelöst
+- `make_venv.sh`: leerer CUDA-Wheel-Parse fiel *offen* aus (venv ohne
+  libcublas, Runtime-Crash später) → jetzt fail closed; `--cuda auto`
+  mappt nur echte 12/13-nvcc, sonst none
+- Wheelhouse-Provenienz: Manifest hasht jetzt auch sdists
+  (.tar.gz/.zip — --find-links würde sie installieren); `make_venv.sh`
+  lehnt Dateien ab, die NICHT im Manifest stehen (planted/stale wheels)
+- Host-Eigenheit dokumentiert: `/usr/local/bin/find` ist ein Wrapper,
+  der `find .` kappt (doppelter `.`-Startpfad) → Skripte nutzen Globbing
+  statt `find .`
 
 ## Verifikations-Strategie
 
@@ -53,10 +80,13 @@ unverändert, Upstream-Engine und MultiGPU unverändert. Branch:
 (`unshare -n` falls verfügbar, sonst dokumentierte Offline-Annahme via
 `--no-index` + kein Netz-Code-Pfad)
 **Akzeptanzkriterien:**
-- [ ] `make_venv.sh` läuft komplett ohne PyPI-Zugriff durch
-- [ ] `run_server.sh` startet Server ODER bricht mit klarer
-      "Engine/Modell fehlt"-Meldung ab (nie Download)
-- [ ] `pip list` im venv entspricht MANIFEST-Hashes
+- [x] `make_venv.sh` läuft komplett ohne PyPI-Zugriff durch
+      (`--no-index` — strukturell kein PyPI-Pfad; `unshare -n` auf dem
+      Build-Host nicht erlaubt → dokumentierte Offline-Annahme)
+- [x] `run_server.sh` startet Server (Mock-Modus, :18123 antwortet) ODER
+      bricht mit klarer "fehlt"-Meldung ab — beides live gezeigt
+- [x] `pip list` im venv entspricht MANIFEST-Hashes (Manifest-Verify vor
+      jeder Installation)
 
 ## Defaults
 

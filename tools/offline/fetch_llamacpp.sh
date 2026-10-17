@@ -62,7 +62,7 @@ while [ $# -gt 0 ]; do
     --from-git)          MODE=git; SRC="${2:?--from-git needs a clone path}"; shift 2;;
     --clone)             MODE=clone; shift;;
     --allow-unverified)  ALLOW_UNVERIFIED=1; shift;;
-    -h|--help)           sed -n '2,30p' "$0"; exit 0;;
+    -h|--help)           awk 'NR==1{next} /^[^#]/{exit} {print substr($0,3)}' "$0"; exit 0;;
     *)                   die "unknown argument: $1";;
   esac
 done

@@ -51,7 +51,7 @@ while [ $# -gt 0 ]; do
     --build-dir) BUILD_DIR="${2:?}"; shift 2;;
     --jobs)      JOBS="${2:?}"; shift 2;;
     --cmake-def) EXTRA_DEFS+=("-D$2"); shift 2;;
-    -h|--help)   sed -n '2,27p' "$0"; exit 0;;
+    -h|--help)   awk 'NR==1{next} /^[^#]/{exit} {print substr($0,3)}' "$0"; exit 0;;
     *)           die "unknown argument: $1";;
   esac
 done
