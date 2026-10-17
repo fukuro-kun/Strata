@@ -115,25 +115,32 @@ mit Klartext ab. Doku: `docs/OFFLINE_BUILD.md` (Python-Deps-Abschnitt).
 **Akzeptanz erfüllt:** Prozess-Doku + erster dokumentierter Review vorhanden;
 keine automatische Synchronisation eingerichtet.
 
-### P5 — OPTIONAL: Robert-C++-Frontend — **EVALUIERT 2026-10-17**
+### P5 — Frontend — **ENTSCIEDEN 2026-10-17: No-Go für Robert**
 
-Evaluierung abgeschlossen: `docs/P5_ROBERT_FRONTEND_EVAL.md` —
-**Empfehlung No-Go für den LAN-Einsatz** (Frontend lehnt Multi-GPU und
-`--vision` aktiv ab, hat kein `/slots` → InferenzQuelle-Live-Admission
-würde `live_check_failed` liefern, keine Anthropic-Endpoints). Robert
+Evaluierung in `docs/P5_ROBERT_FRONTEND_EVAL.md`; fukuro hat die
+**No-Go-Empfehlung bestätigt**. Befund: Roberts Frontend lehnt Multi-GPU
+und `--vision` aktiv ab, hat kein `/slots` → InferenzQuelle-Live-Admission
+würde `live_check_failed` liefern, keine Anthropic-Endpoints. Robert
 adressiert Einzelmaschine/eine GPU ohne Router — nicht unser Profil.
-Entscheidung bleibt fukuros; Checkboxen unten bleiben bewusst offen.
 
-- [ ] Nur nach **expliziter Entscheidung**: Frontend als separate Komponente auf
-      upstream-naher Engine wiederverwenden
-- [ ] Kein Import der gesamten Qwen3.6-/Kernel-Divergenz
-- [ ] Tests: MultiGPU, Swift, Vision, Tools, Langcontext, SSE, Disconnect,
-      echte `/slots`-Readiness/Drain
-- [ ] InferenzQuelle: aktuelle Live-Slot-Admission darf **nicht** global
-      deaktiviert werden
+**Festgelegte Linie:** Der Python-Server (`serve/server.py`) bleibt das
+Frontend. Falls langfristig ein Rewrite nötig wird (Footprint, Dienst-
+Robustheit), dann als **separates Projekt in Rust** — nicht C++: die
+Engine-Anbindung ist das Pipe-Protokoll (`strata --serve`), kein
+Speicher-Linking; Rust bietet für einen Langläufer-Netzdienst
+Speichersicherheit, `tokio`-SSE/Disconnect-Handling und fail-closed-
+Fehlerbehandlung. Tokenizer/Template wären über `tokenizers`+`minijinja`
+gedeckt, Vision über das `strata-vision`-Kind. Kein Import von Roberts
+Qwen3.6-/Kernel-Divergenz — das bleibt verbindlich.
 
-**Akzeptanz:** Nur nach explizitem Go; alle genannten Testbereiche grün;
-Frontend bleibt eine separat ersetzbare Komponente.
+Checkboxen obsolet — Phase damit abgeschlossen:
+
+- [x] ~~Nur nach **expliziter Entscheidung**: Frontend als separate
+      Komponente~~ → entschieden: kein Robert-Frontend
+- [x] Kein Import der gesamten Qwen3.6-/Kernel-Divergenz
+- [x] InferenzQuelle: Live-Slot-Admission bleibt unverändert aktiv
+
+**Akzeptanz erfüllt** durch dokumentierte Entscheidung statt Go.
 
 ### LAN-Umstellung auf den Fork (Session 006) — **uranus LIVE 2026-10-17**
 
