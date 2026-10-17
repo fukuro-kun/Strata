@@ -53,3 +53,6 @@ offers the same steps as tools.
 | `ROADMAP.md` | Phasenplan P0–P5, Status, Freigaben | Phasenfortschritt, Freigaben, Planänderungen |
 | `AGENTS.md` | Arbeitsregeln für Agenten in diesem Repo | Workflow- oder Regeländerungen |
 | `LOKAL.md` | Private Umgebungsdetails (nicht versioniert) | Änderungen an Umgebung, Remotes oder Stand |
+| `docs/INVENTAR.md` | P0-Baseline-Inventar: Quellen, Deps, Lizenzen, Toolchain, Provenienz, Offline-Lücken | Bei Baseline-Wechsel oder neuen Artefakten |
+| `docs/SOLO_SESSION_OVERVIEW.md` | Verkettung der Session-Pläne P0–P5 + LAN-Umstellung | Planänderungen, Session-Abgrenzung |
+| `docs/SOLO_SESSION_00*.md` | Je Phase ein ausführbarer Session-Plan (Entscheidungen, Schritte, Verifikation) | Vor/nach jeder Session-Phase |

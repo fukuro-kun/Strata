@@ -19,27 +19,24 @@ alle abgehakt. Branch: `feat/p0-inventar`.
 
 ## Schritte
 
-- [ ] 1. Branch `feat/p0-inventar` von `main` (= `296b59d2`)
-- [ ] 2. SHA-Verifikation: `git diff` Repo-Checkout vs. `/tmp/strata-src`
-       (identisch erwartet, Doku-Commit `da00a7e0` ausgenommen — der liegt
-       nur auf feat/offline-roadmap, nicht main); Stichproben-Review
-       `setup.py:3261-3378`, `:1967-2005`, `CMakeLists.txt:1300-1320`
-- [ ] 3. Host-Erhebung (SSH): ganymed, uranus, eris — GPU/VRAM, Treiber,
-       CUDA/ROCm, gcc/clang, cmake, python3, RAM, Disk; hydra lokal
-- [ ] 4. Modell-Artefakt-Suche auf denselben Hosts: `*.gguf`, `packs/`,
-       `mmproj*`, MTP, `native_experts*`, `draft_vocab*`, Strata-Datenverz.
-       → Funde mit sha256 (gguf-shards ggf. gestreamt hashen)
-- [ ] 5. Trilium-Kontext: `yWi63z5N6vXc` (Modellpfade), `s60i74CjMyxH`
-       (GPU-Profile), `gpw3xvFxRc8q` (Betrieb), `NhvWTRYMEvjy` (ERIS),
-       `5Ec9sW4aCN6S` (Uranus A/B), `bf6qS9vQRJXl`, `Lpouldo4Bw77`
-- [ ] 6. `docs/INVENTAR.md` schreiben: Quell-Tree, Deps, Lizenzen,
-       Toolchain (4 Hosts), Modell-Provenienz (Repo-Rev + SHA256-Tabellen
-       aus setup.py extrahiert), Netzwerk-Endpunkte, Offline-Lücken,
-       Pin-Eintrag
-- [ ] 7. AGENTS.md Doku-Tabelle: INVENTAR.md + SOLO_SESSION_* eintragen;
-       ROADMAP P0-Checkboxen abhaken
-- [ ] 8. Trilium-Verweis-Note unter `TaWve7nWU3kF` ("Inventar & Baseline-Pin
-       → docs/INVENTAR.md", kurze Verweis-Note, kein Content-Duplikat)
+- [x] 1. Branch `feat/p0-inventar` (von `feat/offline-roadmap`, enthält Doku-Commit `3f85e883`)
+- [x] 2. SHA-Verifikation: Tree-Diff vs. `/tmp/strata-src` **identisch**
+       (nur Fork-Dateien abweichend); Stichproben `setup.py` HF-Revisions,
+       `LLAMA_CPP_COMMIT=3cf03257…`, FetchContent-Pfad bestätigt
+- [x] 3. Host-Erhebung: alle 4 Hosts erreicht + vollständig inventarisiert
+       (hydra lokal; ganymed/uranus/eris via SSH) → `LOKAL.md` Detailtabelle
+- [x] 4. Modell-Artefakt-Suche: alle Fundorte kartiert (ganymed-Archiv 586G,
+       uranus raid5+strata-active, eris hf-swift+strata-active, packs).
+       Frische SHA256-Läufe auf eris+uranus gestartet (Hintergrund); SC117/
+       Coder bereits durch HF-verifizierte Belege abgedeckt
+- [x] 5. Trilium-Kontext: alle sieben Notes gelesen; bestätigen Produktiv-
+       Topologie (Profil R aktiv uranus, Profil Q Rollback, eris B12 manuell)
+- [x] 6. `docs/INVENTAR.md` geschrieben — **committed-fähig**: Hostnamen/Pfade
+       abstrahiert (Repo-Regel „keine Host-Details in Commits"), volle Details
+       in `LOKAL.md`
+- [x] 7. AGENTS.md Doku-Tabelle erweitert; ROADMAP P0 als ERLEDIGT markiert,
+       Status-Absatz auf verifizierte Pin-Doku umgeschrieben
+- [x] 8. Trilium-Verweis-Note `dfPCN7ricKlc` unter `TaWve7nWU3kF` angelegt
 - [ ] 9. Review → Commit → Push `feat/p0-inventar`
 
 ## Verifikations-Strategie

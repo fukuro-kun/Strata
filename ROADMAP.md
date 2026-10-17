@@ -23,12 +23,12 @@ Trilium-Notes.
 Einzelheiten: `docs/SOLO_SESSION_OVERVIEW.md` und die verketteten
 `docs/SOLO_SESSION_*.md`-Pläne.
 
-- Erworbener Stand (Inventar-Baseline): `296b59d2f73c8f04a805df29c2fa97655adace78`
-  auf Default-Branch `main` zum Klon-Zeitpunkt.
-- Diese SHA ist **Inventar-Baseline, kein freigegebener Deployment-Pin.**
-  Früherer Audit-Bezug war `296b59d2f73c8f04a805df29c2fa97655adace78` und der
-  Robert-Snapshot `b124b59`; daraus folgt **keine** automatische Freigabe des
-  jeweils aktuellen Default-Heads. Eine Pin-Entscheidung fällt erst in P0 nach Review.
+- **Gepinnte Baseline (P0 verifiziert):**
+  `296b59d2f73c8f04a805df29c2fa97655adace78` — Tree-Diff gegen den unabhängigen
+  Audit-Checkout identisch; Stichproben-Review bestätigt; ein laufender
+  Produktiv-Checkout steht auf derselben SHA. Nachweis: `docs/INVENTAR.md`.
+  Früherer Audit-Bezug war dieselbe SHA, Robert-Snapshot `b124b59`; daraus folgt
+  **keine** automatische Freigabe des jeweils aktuellen Default-Heads.
 
 ## Begriffe
 
@@ -39,17 +39,18 @@ Einzelheiten: `docs/SOLO_SESSION_OVERVIEW.md` und die verketteten
 
 ## Phasen
 
-### P0 — Inventar und Baseline-Freeze
+### P0 — Inventar und Baseline-Freeze — **ERLEDIGT 2026-10-18**
 
-- [ ] Quell-Inventar: `src/`, `include/`, `serve/`, `tools/`, `cmake/`, `CMakeLists.txt`
-- [ ] Abhängigkeits-Inventar: `requirements.txt`, externe/eingebettete Deps
-- [ ] Lizenz-Inventar aller Komponenten
-- [ ] Toolchain-Inventar: Compiler, CUDA/HIP-Versionen, Python-Version
-- [ ] Provenienz von Modell, Pack, Draft-Modell und Projektor (Herkunft + Hashes)
-- [ ] Reviewte SHA einfrieren und als Pin dokumentieren
+- [x] Quell-Inventar: `src/`, `include/`, `serve/`, `tools/`, `cmake/`, `CMakeLists.txt` → `docs/INVENTAR.md` §1
+- [x] Abhängigkeits-Inventar: `requirements.txt`, externe/eingebettete Deps → §2
+- [x] Lizenz-Inventar aller Komponenten → §3
+- [x] Toolchain-Inventar: Compiler, CUDA/HIP-Versionen, Python-Version → §4 (4 Hosts gemessen)
+- [x] Provenienz von Modell, Pack, Draft-Modell und Projektor (Herkunft + Hashes) → §5
+- [x] Reviewte SHA einfrieren und als Pin dokumentieren → `296b59d2…`, §0
 
-**Akzeptanz:** Schriftliches Inventar mit Herkunft/Hash je Quelle; eingefrorene,
-reviewte SHA dokumentiert.
+**Akzeptanz erfüllt:** `docs/INVENTAR.md` mit Herkunft/Hash je Quelle; eingefrorene,
+reviewte SHA dokumentiert. Host-Details und Hash-Rohdateien: `LOKAL.md` + lokale
+Evidenz-Ablage (Bewusst nicht committed — Repo-Regel).
 
 ### P1 — Isolierter Offline-Build-Einstieg
 
