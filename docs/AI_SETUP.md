@@ -1,5 +1,11 @@
 # Installing Strata for a user (instructions for AI agents)
 
+> **FORK-NOTE:** This repository is a controlled fork. Do **not** run `setup.py`, `setup.sh`,
+> `START-HERE.bat` or any step below that downloads installers or prebuilt engine binaries.
+> The fork builds from pinned sources only — see [OFFLINE_BUILD.md](OFFLINE_BUILD.md),
+> [DEPLOYMENT.md](DEPLOYMENT.md) and the repository `AGENTS.md`. The rest of this page is
+> upstream reference material.
+
 This page is written for an AI coding assistant (Claude Code, Cursor, Codex, GitHub Copilot, ...) that a user asked to
 set up Strata on their PC. Strata runs the Qwen3.8-Flash-Next model locally on one NVIDIA or AMD graphics card plus
 system RAM, and serves an OpenAI- and Anthropic-compatible API on `http://127.0.0.1:8080`. The human-oriented

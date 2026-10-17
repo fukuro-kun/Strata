@@ -1,5 +1,15 @@
 <h1 align="center">Strata</h1>
 
+> **Dies ist ein kontrollierter Fork** ([fukuro-kun/Strata](https://github.com/fukuro-kun/Strata)) von
+> [Niko1221/Strata](https://github.com/Niko1221/Strata) für den LAN-Einsatz. **Nicht** `setup.py`,
+> `setup.sh` oder `START-HERE.bat` ausführen — kein Installer, keine Auto-Downloads, keine
+> vorgefertigten Engine-Binaries. Engine und Server sind byte-identisch zu upstream v0.1.44.1;
+> die Divergenz liegt ausschließlich in der Versorgungskette: Offline-Build aus gepinnten Quellen,
+> Manifeste, versioniertes Deployment mit Rollback, Upstream-Sync nur nach Review.
+> Einstieg: [ROADMAP.md](ROADMAP.md) · [docs/OFFLINE_BUILD.md](docs/OFFLINE_BUILD.md) ·
+> [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Der Text unterhalb ist die unveränderte
+> Upstream-README und dient der Referenz.
+
 **English** · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [Español](README.es.md) · [Português](README.pt-BR.md)
 
 <p align="center"><b>Run a 125-billion-parameter AI model on your own gaming PC</b><br>
