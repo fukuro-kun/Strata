@@ -103,15 +103,21 @@ info "ggml source: $GGML_DIR (pinned $LLAMA_CPP_COMMIT)"
 # ---------------------------------------------------------------- tools
 
 find_tool() {
-  for c in "$1" ".venv/bin/$1"; do
-    [ -x "$c" ] && { command -v "$c"; return; }
-    command -v "$c" >/dev/null 2>&1 && { command -v "$c"; return; }
+  for c in "$1" ".venv-offline/bin/$1" ".venv/bin/$1"; do
+    if [ -f "$c" ] && [ -x "$c" ]; then   # executable file: absolutize (cmake chdir's)
+      ( cd "$(dirname "$c")" && pwd -P ) | sed "s|\$|/$(basename "$c")|"
+      return
+    fi
+    if command -v "$c" >/dev/null 2>&1; then
+      command -v "$c"     # PATH hit — already absolute
+      return
+    fi
   done
   return 1
 }
 
-CMAKE="$(find_tool cmake)" || die "cmake not found (PATH or .venv/bin)"
-NINJA="$(find_tool ninja)" || die "ninja not found (PATH or .venv/bin)"
+CMAKE="$(find_tool cmake)" || die "cmake not found (PATH or .venv-offline/bin)"
+NINJA="$(find_tool ninja)" || die "ninja not found (PATH or .venv-offline/bin)"
 CMAKE_VER="$("$CMAKE" --version | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
 python3 -c "import sys; v='${CMAKE_VER}'.split('.'); sys.exit(0 if [int(v[0]),int(v[1])] >= [3,24] else 1)" \
   || die "cmake $CMAKE_VER < 3.24 (required)"
