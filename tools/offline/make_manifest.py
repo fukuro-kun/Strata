@@ -59,7 +59,7 @@ def tool_ver(cmd: list[str], pat: str = r"[0-9]+\.[0-9]+[0-9.]*") -> str | None:
     except (OSError, subprocess.TimeoutExpired):
         return None
     m = re.search(pat, (out.stdout or "") + (out.stderr or ""))
-    return m.group(0) if m else None
+    return (m.group(1) if m.groups() else m.group(0)) if m else None
 
 
 def main() -> int:
