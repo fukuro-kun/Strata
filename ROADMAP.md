@@ -115,7 +115,14 @@ mit Klartext ab. Doku: `docs/OFFLINE_BUILD.md` (Python-Deps-Abschnitt).
 **Akzeptanz erfüllt:** Prozess-Doku + erster dokumentierter Review vorhanden;
 keine automatische Synchronisation eingerichtet.
 
-### P5 — OPTIONAL: Robert-C++-Frontend
+### P5 — OPTIONAL: Robert-C++-Frontend — **EVALUIERT 2026-10-17**
+
+Evaluierung abgeschlossen: `docs/P5_ROBERT_FRONTEND_EVAL.md` —
+**Empfehlung No-Go für den LAN-Einsatz** (Frontend lehnt Multi-GPU und
+`--vision` aktiv ab, hat kein `/slots` → InferenzQuelle-Live-Admission
+würde `live_check_failed` liefern, keine Anthropic-Endpoints). Robert
+adressiert Einzelmaschine/eine GPU ohne Router — nicht unser Profil.
+Entscheidung bleibt fukuros; Checkboxen unten bleiben bewusst offen.
 
 - [ ] Nur nach **expliziter Entscheidung**: Frontend als separate Komponente auf
       upstream-naher Engine wiederverwenden
