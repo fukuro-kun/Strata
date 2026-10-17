@@ -158,15 +158,64 @@ Checkboxen obsolet — Phase damit abgeschlossen:
       `~/strata-deploy/current/run.sh`; `/slots` + echte Chat-Completion
       verifiziert, janus-Router meldet `uranus-swift15` healthy; Rollback
       auf den alten Stack real geübt und zurückgewechselt
-- [ ] **eris offen** — Deploy+Unit stehen; Startversuch scheiterte
-      fail-closed an `cudaMalloc` (llama-server `eris-chat` belegt
-      15,6/16 GiB). Abnahme sobald eris-chat per Policy unten ist;
-      Unit `strata-fork` installiert, absichtlich disabled (kein
-      Retry-Loop). Runbook `docs/DEPLOYMENT.md`
-- [ ] ganymed: kein Strata-Dienst (Modellarchiv) — nichts umzustellen
+- [x] **eris LIVE 2026-10-17 ~23:48 MESZ** — `eris-chat` abgeschaltet
+      (inactive+disabled), danach startete `eris-strata.service`
+      (IQ-Profil-Unit, ExecStart `~/strata-deploy/current/run.sh`
+      :8080) sauber durch: `/health` loaded, Modell
+      `qwen38-flashnext-swift15-standard-iq2_xs`, 262144 ctx,
+      echte Completion 400 Tokens @ 41,7 tok/s. Früherer
+      `strata-fork`-Unit-Versuch scheiterte fail-closed an
+      `cudaMalloc` (eris-chat belegte 15,6/16 GiB) — mit GPU-Freigabe
+      aufgelöst; die überflüssige Test-Unit wurde entfernt
+- [x] ganymed: kein Strata-Dienst (Modellarchiv) — nichts umzustellen
 
 Details und Switch-Runbook: `docs/SOLO_SESSION_006_lan_umstellung.md`,
 `docs/DEPLOYMENT.md`.
+
+## Umgesetzte Fork-Fixes
+
+### Engine-Auto-Recovery (`engine_auto_restart`) — Branch `feat/engine-auto-recovery`, lokal implementiert 2026-10-18
+
+**Root Cause:** Stirbt der Engine-Kindprozess zwischen Requests (z. B. vom
+internen `ERR verify: timed out`-Pfad per `proc.terminate()`), bleibt der
+Python-Server äußerlich gesund: `/slots` liefert `[]`, `/v1/status` meldet
+`loaded:false`. Ein nachgelagerter fail-closed Router nimmt den Endpunkt
+dann aus der Rotation, sodass nie wieder ein Request ankommt, der
+`auto_load` auslösen könnte — Deadlock. `Restart=on-failure` greift nicht,
+weil die Unit (Python-Server) lebt.
+
+**Fix:** Opt-in-Config `"engine_auto_restart": true` (strikt bool, Default
+`false`). Ein Watchdog-Thread in `serve/server.py` (1 s Poll) startet eine
+tote native `StrataEngine` über denselben `ensure_loaded`-Pfad wie ein
+Request (`before_load`, `min_free_vram_mib`, Vision). Budget: max. 3
+Versuche in 900 s rollendem Fenster, ≥15 s Abstand; Recovery-Versuche
+laufen mit `restart(tries=1, start_retries=0)`, d. h. auch die inneren
+transienten Konstruktor-Retries sind deaktiviert — maximal ein nativer
+Spawn pro Autoversuch (auch eine Load-Hook-/VRAM-Verweigerung verbraucht
+den Versuch ohne Spawn). Manuelle `/load`-/Request-Loads behalten die
+bisherigen Engine-Retries. Bewusst entladene
+(`POST /unload`, Idle-Unload, nie geladen), lebende, busy/queued/draining
+oder startende Engines bleiben unberührt; der ausgefallene Request wird nie
+wiederholt; `/slots` bleibt bis READY `[]`. Status additiv unter
+`engine_recovery` in `/health` und `/v1/status`. Shutdown: Worker stoppt
+und joint vor `engine.close()`; ein bereits laufender Start darf zu Ende
+laufen — die Bereitschaftswarte (`ENGINE_READY_S`, Default 900 s) begrenzt
+nur das Warten auf READY, Hooks und Cleanup laufen zusätzlich.
+
+**Status:** Lokal implementiert und mit CPU-Fakeprozess getestet; **kein**
+produktiver Rollout — Configs auf den Hosts sind noch nicht aktiviert,
+kein Live-GPU-Fehlertest. Der Fix heilt den Deadlock, nicht den zugrunde
+liegenden nativen Verify-Hang. Details: `docs/DETAILS.md`
+(GPU-Sharing-Abschnitt, `"engine_auto_restart"`).
+
+### Pre-existing: flaky Sampler-Test (`test_responses.NoLeakedSampler`) — gefixt 2026-10-18
+
+Der Test zählte global alle Threads mit Namen `*(_loop)` (before/after),
+während `Telemetry.close()` nur das Stop-Event setzt und fremde, gerade
+auslaufende Sampler-Threads anderer Tests zwischen den Messungen enden —
+Assertions wie `1 != 2` ohne Produktionsbug. Der Test identifiziert jetzt
+den eigenen Sampler-Thread an seiner `svc.telemetry`-Instanz und joint ihn
+nach `server_close()`. Reine Test-Änderung, kein Lifecycle-Change.
 
 ## Zurückgestellt / Nicht-Ziele
 
