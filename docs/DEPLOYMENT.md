@@ -24,7 +24,9 @@ Upstream-Checkout (`~/git/strata`) und schon gar nicht über
   zeigt; die gepflegte Fassung liegt im InferenzQuelle-Repo.
 - Eine neue Instanz wird **nie** parallel zu einer laufenden
   Eval/Inferenz auf denselben GPUs gestartet (VRAM-Konflikt) — der
-  Switch wartet auf ein freies GPU-Fenster.
+  Switch wartet auf ein freies GPU-Fenster. Auf eris schließt sich
+  Strata sogar mit dem Dauer-`eris-chat` (llama-server ~15,6 GiB von
+  16 GiB) kapazitiv aus: Start erst wenn eris-chat per Policy unten ist.
 
 ## Begriffe
 

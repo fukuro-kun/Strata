@@ -6,14 +6,26 @@ Der letzte verbleibende Strata-Dienst im LAN läuft auf dem Fork:
 eris-Switch nach Eval-Ende + alle Abnahmen + Restarbeiten aus den
 früheren Sessions. Branch: `feat/p6-lan-umstellung` (fortsetzen).
 
-## Voraussetzung / Gate
+## Stand 2026-10-17 ~15:00 — teilweise erledigt, GPU-Blocker
 
-```bash
-ssh eris 'pgrep -f "eval.py|strata --serve" || echo FREI; nvidia-smi --query-gpu=memory.used --format=csv,noheader'
-```
-
-Eval (`eval.py` :8081 + Engine) muss beendet sein. Läuft er noch →
-Session 008 nicht starten; stattdessen NEBENAUFGABEN unten abarbeiten.
+- [x] Gate: eris-Eval beendet (keine eval.py/server/strata-Prozesse mehr)
+- [x] `systemctl --user enable --now strata-fork` ausgeführt → Engine
+      startete aus dem Deploy-Dir, scheiterte dann **fail-closed**:
+      `cudaMalloc` für die Weight-Arena (1,47 GiB) — llama-server
+      (`eris-chat.service`, :18080) belegt 15,6 GiB der 16 GiB.
+      → Dienst bewusst gestoppt + disabled (kein Retry-Loop);
+      Unit bleibt installiert, Start wartet auf ein GPU-Fenster ohne
+      eris-chat (Vorher-Nebeneinander gab es nie — B12 lief nur, wenn
+      llama-server aus war).
+- [x] N1+N2 erledigt (`5b0b6371`): `toolchain.nvcc` liest jetzt den
+      effektiven Compiler aus `BUILD.json.cuda_dirs`; ninja-Probe deckt
+      `.venv-offline/bin` ab — auf hydra verifiziert (`nvcc 13.4 +
+      nvcc_path`), auf den Host-Checkouts per `git pull` verteilt.
+- [ ] Verbleibend: eris `/slots`- + Completion-Abnahme wenn GPU frei
+      (eris-chat pausiert/suspendiert oder nach Policy-Fenster);
+      eris-Rollback-Übung (= alter manueller Pfad, dokumentiert)
+- [ ] `~/strata-fork-configs/` + LOKAL/Trilium-Finalisierung eris → LIVE
+      (erst nach erfolgreicher Abnahme)
 
 ## Schritte (Gate offen)
 

@@ -140,9 +140,11 @@ Frontend bleibt eine separat ersetzbare Komponente.
       `~/strata-deploy/current/run.sh`; `/slots` + echte Chat-Completion
       verifiziert, janus-Router meldet `uranus-swift15` healthy; Rollback
       auf den alten Stack real geübt und zurückgewechselt
-- [ ] **eris offen** — SC117-Eval :8081 lief bis zuletzt; nach Eval-Ende:
-      `systemctl --user enable --now strata-fork`, dieselbe Abnahme +
-      Rollback-Übung (Runbook `docs/DEPLOYMENT.md`)
+- [ ] **eris offen** — Deploy+Unit stehen; Startversuch scheiterte
+      fail-closed an `cudaMalloc` (llama-server `eris-chat` belegt
+      15,6/16 GiB). Abnahme sobald eris-chat per Policy unten ist;
+      Unit `strata-fork` installiert, absichtlich disabled (kein
+      Retry-Loop). Runbook `docs/DEPLOYMENT.md`
 - [ ] ganymed: kein Strata-Dienst (Modellarchiv) — nichts umzustellen
 
 Details und Switch-Runbook: `docs/SOLO_SESSION_006_lan_umstellung.md`,
