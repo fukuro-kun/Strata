@@ -6,7 +6,9 @@ bewusster, dokumentierter Vorgang.
 
 ## Remotes
 
-- `origin` = `git@github.com:fukuro-kun/Strata.git` (unser Fork, pushfähig)
+- `origin` = `git@europa:fukuro/Strata.git` (unser Fork auf dem LAN-Forgejo,
+  pushfähig; `git push` spiegelt automatisch zusätzlich nach GitHub — `github`
+  = `git@github.com:fukuro-kun/Strata.git`, reiner Mirror, nichts direkt pushen)
 - `upstream` = `https://github.com/Niko1221/Strata.git` (read-only Referenz;
   Push-URL ist `PUSH_DISABLED` — **nie ändern**)
 

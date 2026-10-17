@@ -1,7 +1,8 @@
 <h1 align="center">Strata</h1>
 
-> **Dies ist ein kontrollierter Fork** ([fukuro-kun/Strata](https://github.com/fukuro-kun/Strata)) von
-> [Niko1221/Strata](https://github.com/Niko1221/Strata) für den LAN-Einsatz. **Nicht** `setup.py`,
+> **Dies ist ein kontrollierter Fork** von [Niko1221/Strata](https://github.com/Niko1221/Strata)
+> für den LAN-Einsatz. Kanonisches Repo: Forgejo im Eulenhorst-LAN (`fukuro/Strata`);
+> [github.com/fukuro-kun/Strata](https://github.com/fukuro-kun/Strata) ist nur ein Mirror. **Nicht** `setup.py`,
 > `setup.sh` oder `START-HERE.bat` ausführen — kein Installer, keine Auto-Downloads, keine
 > vorgefertigten Engine-Binaries. Engine und Server sind byte-identisch zu upstream v0.1.44.1;
 > die Divergenz liegt ausschließlich in der Versorgungskette: Offline-Build aus gepinnten Quellen,

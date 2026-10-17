@@ -12,7 +12,8 @@ Upstream-Checkout (`~/git/strata`) und schon gar nicht über
 
 - Fork-Checkout pro Host (Stand Session 006: `~/git/strata-fork`,
   Branch `feat/p6-lan-umstellung`), beschafft via `git bundle`/`pull`
-  von `origin` = `fukuro-kun/Strata`.
+  von `origin` = `git@europa.eulenhorst.lan:fukuro/Strata.git`
+  (LAN-Forgejo, kanonisch; `github`-Remote = Mirror-Fallback).
 - Dienst-Start immer über `<deploy-root>/current/run.sh` bzw.
   `tools/offline/run_server.sh` — nie direkt `.venv/bin/python
   serve/server.py` aus einem unbearbeiteten Checkout.
