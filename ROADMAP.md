@@ -52,15 +52,20 @@ Einzelheiten: `docs/SOLO_SESSION_OVERVIEW.md` und die verketteten
 reviewte SHA dokumentiert. Host-Details und Hash-Rohdateien: `LOKAL.md` + lokale
 Evidenz-Ablage (Bewusst nicht committed — Repo-Regel).
 
-### P1 — Isolierter Offline-Build-Einstieg
+### P1 — Isolierter Offline-Build-Einstieg — **ERLEDIGT 2026-10-18**
 
-- [ ] Build-Einstieg definieren, der ausschließlich lokale, gepinnte Inputs nutzt
-- [ ] Lokales, gepinntes llama.cpp über die vorhandene `STRATA_GGML_DIR`-Nahtstelle anbinden
-- [ ] Fehlende Inputs → **fail closed** (klarer Abbruch), niemals Download/Fallback
-- [ ] Eigene Engine aus Quellen bauen (kein Prebuilt)
+- [x] Build-Einstieg: `tools/offline/build_engine.sh` (fail-closed, keine Netz-Aufrufe)
+- [x] Lokales llama.cpp via `STRATA_GGML_DIR`: `third_party/llama.cpp` @
+      `3cf03257…` + `.strata-pin`; Bezug via `tools/offline/fetch_llamacpp.sh`
+      (LAN-Kopie, byte-identisch zu zwei Produktiv-Bäumen verifiziert)
+- [x] Fail closed: CMake `FATAL_ERROR` bei leerem `STRATA_GGML_DIR` (Escape:
+      `-DSTRATA_ALLOW_GGML_FETCH=ON`); Skript bricht bei fehlendem Input/Pin-
+      Mismatch ab — live getestet
+- [x] Eigene Engine aus Quellen: `engine/strata` + `strata-vision` +
+      `libstrata_kq.so` auf hydra gebaut (CUDA 13.4, sm_86), Smoke-Test ok
 
-**Akzeptanz:** Build läuft vollständig offline aus lokalen Quellen; fehlender
-Input führt zu kontrolliertem Abbruch, nie zu stiller Netz-Beschaffung.
+**Akzeptanz erfüllt:** Build lief komplett ohne Netz-Fetch (Configure-Log
+fetch-frei); fehlender Input → kontrollierter Abbruch. Doku: `docs/OFFLINE_BUILD.md`.
 
 ### P2 — Python-Abhängigkeiten lokal bereitstellen
 

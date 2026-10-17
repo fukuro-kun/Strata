@@ -1260,7 +1260,11 @@ target_link_libraries(strata_kernels_cpu PUBLIC Threads::Threads)
 # The CPU computes a native expert with ggml-cpu's own dot products (`ggml_get_type_traits_cpu`), so an IQ
 # weight means exactly what it means in llama.cpp.  ggml is built static from a llama.cpp checkout: a local one
 # with -DSTRATA_GGML_DIR=..., otherwise the pinned upstream commit (third_party/ggml/VERSION.txt).
-set(STRATA_GGML_DIR "" CACHE PATH "llama.cpp checkout to take ggml from (empty: fetch the pinned commit)")
+# FORK: help text updated — empty no longer fetches by default (STRATA_ALLOW_GGML_FETCH=OFF fails closed).
+set(STRATA_GGML_DIR "" CACHE PATH "llama.cpp checkout to take ggml from (required; empty is a hard error unless STRATA_ALLOW_GGML_FETCH=ON)")
+# FORK (fukuro-kun/Strata): default OFF = fail closed. ON restores upstream's FetchContent behaviour
+# (deliberate, documented procurement only — e.g. P4 upstream-review builds).
+option(STRATA_ALLOW_GGML_FETCH "allow FetchContent download of pinned llama.cpp when STRATA_GGML_DIR is empty" OFF)
 if(STRATA_PREFILL_MMQ AND NOT STRATA_NATIVE_EXPERTS)
   message(FATAL_ERROR "STRATA_PREFILL_MMQ requires STRATA_NATIVE_EXPERTS=ON for GGML sources")
 endif()
@@ -1302,6 +1306,16 @@ if(STRATA_NATIVE_EXPERTS)
   endif()
   if(STRATA_GGML_DIR)
     add_subdirectory(${STRATA_GGML_DIR}/ggml ${CMAKE_BINARY_DIR}/ggml EXCLUDE_FROM_ALL)
+  elseif(NOT STRATA_ALLOW_GGML_FETCH)
+    # FORK (fukuro-kun/Strata): fail closed. An empty STRATA_GGML_DIR must never become a silent network
+    # fetch at configure time; point it at the local pinned llama.cpp checkout instead
+    # (third_party/llama.cpp, see docs/OFFLINE_BUILD.md and tools/offline/fetch_llamacpp.sh).
+    message(FATAL_ERROR
+      "STRATA_GGML_DIR is not set. Fork policy (offline build): pass "
+      "-DSTRATA_GGML_DIR=<local pinned llama.cpp checkout> (pinned commit "
+      "3cf03257f219afbe7334045ff7c6a06ac68c627d). To use upstream's FetchContent "
+      "path instead — deliberate, documented procurement only — configure with "
+      "-DSTRATA_ALLOW_GGML_FETCH=ON.")
   else()
     include(FetchContent)
     FetchContent_Declare(strata_llamacpp
