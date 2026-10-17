@@ -1,8 +1,30 @@
 # DEPLOYMENT — kontrolliertes Deployment (P3)
 
 Wie ein Fork-Build kontrolliert auf einen Host kommt und wieder zurück kann.
-**Kein** Produktiv-Deploy ohne separate Freigabe; der Mechanismus hier ist
-die Voraussetzung für die LAN-Umstellung (Session 006).
+**Kein** Produktiv-Deploy ohne separate Freigabe.
+
+## LAN-Regel (festgelegt 2026-10-17)
+
+Alle Strata-Deployments im LAN laufen aus einem Fork-Checkout +
+P3-Deploy-Verzeichnis — **nicht** mehr direkt aus einem
+Upstream-Checkout (`~/git/strata`) und schon gar nicht über
+`setup.py`-erzeugte Pfade. Konkret:
+
+- Fork-Checkout pro Host (Stand Session 006: `~/git/strata-fork`,
+  Branch `feat/p6-lan-umstellung`), beschafft via `git bundle`/`pull`
+  von `origin` = `fukuro-kun/Strata`.
+- Dienst-Start immer über `<deploy-root>/current/run.sh` bzw.
+  `tools/offline/run_server.sh` — nie direkt `.venv/bin/python
+  serve/server.py` aus einem unbearbeiteten Checkout.
+- Configs mit Host-Pfad auf den Fork zeigen als `*.fork.json` unter
+  `~/strata-fork-configs/` (host-lokal, nicht committed — enthalten
+  private Pfade).
+- System-Units (z.B. `strata-swift-uranus.service`) werden so
+  umgeschrieben, dass `ExecStart` auf `~/strata-deploy/current/run.sh`
+  zeigt; die gepflegte Fassung liegt im InferenzQuelle-Repo.
+- Eine neue Instanz wird **nie** parallel zu einer laufenden
+  Eval/Inferenz auf denselben GPUs gestartet (VRAM-Konflikt) — der
+  Switch wartet auf ein freies GPU-Fenster.
 
 ## Begriffe
 
@@ -67,7 +89,29 @@ zurückgeschwenkt. Der Dienst wird per Default neu gestartet.
 
 ## systemd-Varianten
 
-Default ist `systemd --user` (kein sudo). Bestehende produktive Units,
-die root-seitig oder system-weit laufen, werden in Session 006 pro Host
-dokumentiert und nur dort umgestellt — diese Session ändert keine
-Produktiv-Units.
+Default ist `systemd --user` (kein sudo). System-Units (produktiv, mit
+sudo) werden beim Switch durch die Fork-Fassung ersetzt — die Datei
+liegt im InferenzQuelle-Repo (`services/uranus/strata-swift-uranus.service`,
+Branch `feat/strata-fork-deploy`). Auf Hosts ohne produktive Unit
+(eris) genügt die generierte User-Unit `strata-fork.service`.
+
+### Switch-Runbook (pro Host, nach Eval-/GPU-Fenster)
+
+```bash
+# uranus (System-Unit; sudo nötig):
+sudo cp <inferenzquelle>/services/uranus/strata-swift-uranus.service \
+        /etc/systemd/system/ && sudo systemctl daemon-reload
+sudo systemctl enable --now strata-swift-uranus   # startet current/run.sh :18086
+curl -s 127.0.0.1:18086/slots | head    # readiness
+# Chat-Completion-Probe, dann InferenzQuelle-Router-Sicht (janus :8010)
+
+# eris (User-Unit, kein sudo):
+systemctl --user enable --now strata-fork   # Config-Port 8080
+curl -s 127.0.0.1:8080/slots | head
+
+# Rollback (beide):
+~/git/strata-fork/tools/offline/rollback.sh --deploy-root ~/strata-deploy
+```
+
+Vor dem ersten produktiven Start eines Hosts einmalig das Rollback
+real üben (deploy → rollback → redeploy).

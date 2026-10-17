@@ -20,34 +20,80 @@ Doku-Änderungen dort oder `feat/lan-umstellung`).
 | Was wird umgestellt | Engine-Build (Fork, eigenes Binary), Server-Start-Pfad (unser run_server.sh statt setup.py), Config bleibt kompatibel (strata-*.json Inhalt unverändert wo möglich) |
 | Doku-Regel | "Deployments laufen auf fukuro-kun/Strata (upstream-naher Fork, gepinnte SHA), nicht auf Upstream-Installer" — in Trilium-Notes + LOKAL.md + DEPLOYMENT.md |
 
+## Ergebnis 2026-10-17 (Stand: Deploys vorbereitet, Switch eval-blockiert)
+
+### Deploy-Matrix (LAN-Discovery abgeschlossen)
+
+| Host | Dienst / Prozess | Port | Modell | Verbraucher | Umstellung |
+|---|---|---|---|---|---|
+| uranus | `sc117-test-q2_0.service` (user, **aktiv — Eval läuft**) | 18087 | sc117-abliterated-q2_0 | eval.py | bleibt bis Eval-Ende auf altem Checkout |
+| uranus | `strata-swift-uranus.service` (System-Unit, disabled, zuletzt 16.10.) | 18086 (0.0.0.0) | swift-1.5-iq3_s | InferenzQuelle janus `uranus-swift15` (tier 0, Alias `swift15-flash-next`) | Fork-Deploy staged; Unit-Update vorbereitet (IQ-Repo `feat/strata-fork-deploy`), Installation beim Switch |
+| eris | Eval-Prozesse (manuell/nohup, **aktiv**) | 8081 | sc117-iq2_xs | eval.py | bleibt bis Eval-Ende |
+| eris | Produktiv-Configs `strata-swift-iq2_xs.json`, `strata-coder-iq1_m*.json` (keine Unit — manueller Start) | 8080 | swift-1.5-iq2_xs / coder-iq1_m | lokale Nutzung | `.fork.json`-Varianten erzeugt; Fork-Deploy staged |
+| eris | `eris-chat.service`, ERIS-CODE :18082 | — | — | llama-server/InferenzQuelle | **kein Strata** — außerhalb Scope |
+| ganymed | kein laufendes Strata | — | — | Cold-Storage/Modellarchiv | nichts zu tun |
+| hydra | kein produktiver Strata-Dienst | — | — | Build-Host | nichts zu tun |
+
+### Geliefert (beide Hosts, identische Mechanik)
+
+- Fork-Checkout `~/git/strata-fork` @ `feat/p6-lan-umstellung` (`d18e7fea`),
+  via `git bundle` über LAN gebracht; `origin` zeigt auf den Fork
+  (GitHub-SSH-Auth auf beiden Hosts vorhanden, `git pull` verifiziert)
+- `third_party/llama.cpp` via `fetch_llamacpp.sh --from-dir
+  ~/git/strata/third_party/llama.cpp --allow-unverified` (Byte-Identität
+  der Bäume war P0-Evidenz; pin `3cf03257`)
+- Engine lokal gebaut (P1-Pfad): uranus sm_89 mit CUDA 13.0 (effektiver
+  Compiler `/usr/local/cuda-13.0/bin/nvcc`, CMakeCache verifiziert),
+  eris sm_86/CUDA 12.4, `--vision cpu` = Produktiv-Vokabular
+- `.venv-offline` via `make_venv.sh` (uranus `--cuda 13` explizit —
+  PATH-nvcc ist 12.0; eris `--cuda 12`, Python 3.14)
+- `.fork.json`-Config-Varianten unter `~/strata-fork-configs/` (host-lokal,
+  enthalten Host-Pfade → nicht committed)
+- P3-Deploys: uranus `~/strata-deploy/d18e7fea-20261017T033913Z`,
+  eris `…/d18e7fea-20261017T033934Z`; `current`-Symlinks gesetzt,
+  Manifest-Verifikation vor Swap bestanden, alle config-referenzierten
+  Pfade (exe, vision, pack, native, ple, mtp, expert-profile, tokenizer)
+  auf Existenz geprüft — keine fehlenden Inputs
+- User-Unit `strata-fork.service` installiert, **nicht gestartet**
+
+### Nicht geschaltet (Grund: aktive Evals auf den GPUs)
+
+Live-Start einer zweiten Strata-Instanz würde den laufenden SC117-Evals
+VRAM entziehen — bewusst ausgelassen. Offen bis Eval-Ende:
+
+- `strata-swift-uranus.service` (System) durch die Fork-Variante
+  ersetzen (liegt in InferenzQuelle `feat/strata-fork-deploy`),
+  `sudo systemctl daemon-reload + start`, `/slots`-Probe +
+  Chat-Completion gegen :18086
+- eris: `systemctl --user start strata-fork` (Config port 8080) +
+  dieselbe Abnahme
+- Rollback-Übung pro Host (`rollback.sh --deploy-root ~/strata-deploy`)
+
+### Fixes unterwegs (auf `feat/p6-lan-umstellung`)
+
+- `find_tool` suchte ninja nicht in `.venv-offline/bin` (eris hatte nur
+  dort eins); lieferte außerdem relative Pfade — CMake-TryCompile
+  scheiterte; `-x` traf das repo-eigene `cmake/`-Verzeichnis
+- `--cmake-def CMAKE_CUDA_COMPILER=…` wurde an cmake durchgereicht, aber
+  der BUILD.json-Stamp (`cuda_dirs`) blieb auf PATH-nvcc → falsche
+  Provenienz; Override gewinnt jetzt vor dem Stamp
+
 ## Schritte
 
-- [ ] 1. LAN-Discovery abschließen (P0 begonnen): `ssh <host>` auf ganymed,
-       uranus, eris — `systemctl --user list-units | grep -i strata`,
-       `systemctl list-units | grep -i strata`, `ps aux | grep -i
-       strata/serve`, lauschende Ports (ss -tlnp), Strata-Verzeichnisse,
-       Modellpfade, InferenzQuelle-Config (welche Endpunkte zeigen auf
-       Strata?)
-- [ ] 2. Trilium-Notes konsolidieren: `yWi63z5N6vXc` Modellpfade,
-       `NhvWTRYMEvjy` ERIS-STRATA, `5Ec9sW4aCN6S` Uranus-Testplan,
-       `gpw3xvFxRc8q` Betrieb, `fvflya8lFkbH` InferenzQuelle,
-       `bf6qS9vQRJXl` Eris, `Lpouldo4Bw77` Uranus, `s60i74CjMyxH` GPU-Profile
-       → Deploy-Matrix (Host | Dienst | Engine-Stand | Modell | Verbraucher)
-- [ ] 3. Pro Zielhost: Fork-Checkout/Artefakt-Bereitstellung — entweder
-       Build auf dem Host (P1-Pfad) oder Artefakt-Transfer vom Build-Host
-       mit Manifest-Verifikation (sha256 vor Ort prüfen)
-- [ ] 4. Deploy-Pfad pro Host: versioniertes Verzeichnis + Unit-Anpassung
-       (Pfadwechsel auf Fork-Stand), **Rollback-Symlink bleibt auf altem
-       Stand** bis Smoke-Test grün
-- [ ] 5. Abnahme pro Host: `/slots`- oder health-Endpunkt + eine echte
-       Chat-Completions-Anfrage (kurz); InferenzQuelle-Router-Sicht prüfen
-       wenn konfiguriert (admission akzeptiert Slot-Liste)
-- [ ] 6. Rollback-Verifikation einmal pro Host-Typ: `rollback.sh` → alter
-       Stand antwortet wieder → zurück auf Fork (dokumentierter Pfad)
-- [ ] 7. Doku-Reglementierung: Trilium-Notes (Betrieb, ERIS-STRATA,
-       Uranus, InferenzQuelle, Modellpfade, ggf. Host-Notes) +
-       DEPLOYMENT.md um Regel ergänzen; ROADMAP-Status aktualisieren
-- [ ] 8. Review → Commit → Push; Ergebnis-Tabelle Host→Stand im Bericht
+- [x] 1. LAN-Discovery abschließen (s. Matrix oben)
+- [x] 2. Trilium-Notes konsolidiert → Matrix
+- [x] 3. Fork-Artefakte pro Host: lokaler P1-Build (uranus sm_89/CUDA-13.0,
+       eris sm_86/CUDA-12.4), Manifest-Verifikation beim Deploy bestanden
+- [x] 4. Deploy-Pfad: versioniertes Verzeichnis + current-Symlink;
+       uranus-System-Unit als Fork-Variante in InferenzQuelle-Repo
+       vorbereitet (`feat/strata-fork-deploy`)
+- [ ] 5. Abnahme `/slots` + Chat-Completion — **blockiert durch laufende
+       Evals**, nach Eval-Ende
+- [ ] 6. Rollback-Verifikation — ebenfalls nach Eval-Ende (Mechanik selbst
+       ist P3-getestet)
+- [x] 7. Doku: InferenzQuelle-Unit + Trilium-Updates (s. unten) +
+       DEPLOYMENT.md/LOKAL.md
+- [ ] 8. Review → Commit → Push
 
 ## Verifikations-Strategie
 
