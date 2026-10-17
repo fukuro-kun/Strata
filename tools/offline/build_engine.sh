@@ -155,7 +155,15 @@ fi
 
 DEFS=(-DCMAKE_BUILD_TYPE=Release -DSTRATA_GGML_DIR="$GGML_DIR" -DSTRATA_BUILD_TESTS="$TESTS")
 if [ "$CUDA" != off ]; then
-  NVCC_REAL="$(readlink -f "$NVCC")"
+  # A user-supplied --cmake-def CMAKE_CUDA_COMPILER=… wins over PATH-nvcc —
+  # needed on hosts whose default toolkit is older than the intended one.
+  NVCC_CHOSEN="$NVCC"
+  for d in "${EXTRA_DEFS[@]:-}"; do
+    case "$d" in -DCMAKE_CUDA_COMPILER=*) NVCC_CHOSEN="${d#-DCMAKE_CUDA_COMPILER=}";; esac
+  done
+  [ -x "$NVCC_CHOSEN" ] || die "CUDA compiler '$NVCC_CHOSEN' is not executable"
+  NVCC_REAL="$(readlink -f "$NVCC_CHOSEN")"
+  NVCC="$NVCC_REAL"   # effective compiler — also what BUILD.json records
   DEFS+=(-DSTRATA_ENABLE_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="$ARCHS"
          -DCMAKE_CUDA_COMPILER="$NVCC_REAL")
   NVROOT="$(dirname "$(dirname "$NVCC_REAL")")"
