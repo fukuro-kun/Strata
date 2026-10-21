@@ -1,5 +1,10 @@
 # Installing Strata
 
+> **FORK-NOTE:** This repository is a controlled fork — do **not** run `setup.py`, `setup.sh`,
+> `START-HERE.bat` or any installer step described below. Builds and deployments use the
+> pinned, offline toolchain instead: [OFFLINE_BUILD.md](OFFLINE_BUILD.md) and
+> [DEPLOYMENT.md](DEPLOYMENT.md). The rest of this page is upstream reference material.
+
 Everything about installing, starting, updating and configuring Strata, on Windows and Linux, with an NVIDIA or an
 AMD graphics card. The short version is in the [README](../README.md#install); an AI coding assistant can do all of
 this for you with [AI_SETUP.md](AI_SETUP.md).

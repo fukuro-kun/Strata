@@ -34,3 +34,30 @@ offers the same steps as tools.
   [docs/COMMUNITY_BENCHMARKS.md](docs/COMMUNITY_BENCHMARKS.md), compare against a same-day run of the build you are
   testing, and say what you did not test.
 - Open test requests and the hardware that is wanted are listed in [docs/TEST_REQUESTS.md](docs/TEST_REQUESTS.md).
+
+## Fork-Workflow (dieser Fork — übersteuert die Installer-Anleitung oben)
+
+- **Nicht** `docs/AI_SETUP.md`, `setup.py`, `setup.sh` oder `START-HERE.bat` ausführen: kein
+  Installer-Lauf, kein Auto-Download, kein Server-Start aus dieser Doku heraus.
+- Kanonischer Plan: **[ROADMAP.md](ROADMAP.md)** (deutsch, Phasen P0–P5). Aktueller Stand:
+  nur Vorbereitung und Dokumentation — Implementierung braucht separate Freigabe.
+- Remotes: `origin` = dieser Fork auf dem Forgejo im LAN (`europa`, kanonisch);
+  `github` = fukuro-kun/Strata als reiner Mirror (serverseitiger Push-Mirror
+  auf europa spiegelt jeden Push — nichts direkt auf `github` pushen);
+  `upstream` = Niko1221/Strata als reine Lese-Referenz (Push deaktiviert —
+  Sync nur über den P4-Prozess). **Push-Gate:** unreviewter Upstream-Stand
+  wird niemals auf einen `origin`-Branch gepusht — der Mirror macht ihn
+  sofort öffentlich; Regeln in `docs/UPSTREAM_SYNC.md` §Push-Gate.
+- Private Umgebungsdetails (Pfade, Hosts, IDs) gehören in `LOKAL.md` — lokal gehalten,
+  niemals committen.
+
+### Kanonische Doku-Dateien
+
+| Datei | Zweck | Aktualisieren wenn |
+|---|---|---|
+| `ROADMAP.md` | Phasenplan P0–P5, Status, Freigaben | Phasenfortschritt, Freigaben, Planänderungen |
+| `AGENTS.md` | Arbeitsregeln für Agenten in diesem Repo | Workflow- oder Regeländerungen |
+| `LOKAL.md` | Private Umgebungsdetails (nicht versioniert) | Änderungen an Umgebung, Remotes oder Stand |
+| `docs/INVENTAR.md` | P0-Baseline-Inventar: Quellen, Deps, Lizenzen, Toolchain, Provenienz, Offline-Lücken | Bei Baseline-Wechsel oder neuen Artefakten |
+| `docs/SOLO_SESSION_OVERVIEW.md` | Verkettung der Session-Pläne P0–P5 + LAN-Umstellung | Planänderungen, Session-Abgrenzung |
+| `docs/SOLO_SESSION_00*.md` | Je Phase ein ausführbarer Session-Plan (Entscheidungen, Schritte, Verifikation) | Vor/nach jeder Session-Phase |

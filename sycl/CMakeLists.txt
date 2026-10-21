@@ -155,7 +155,10 @@ option(STRATA_Q6K_EXPERTS "Build the Q6_K gate/up grouped expert kernels (UD-Q6_
 if(STRATA_Q6K_EXPERTS)
   add_compile_definitions(STRATA_Q6K_EXPERTS=1)
 endif()
-set(STRATA_GGML_DIR "" CACHE PATH "llama.cpp checkout to take ggml from (empty: fetch the pinned commit)")
+# FORK: help text updated — empty no longer fetches by default (STRATA_ALLOW_GGML_FETCH=OFF fails closed).
+set(STRATA_GGML_DIR "" CACHE PATH "llama.cpp checkout to take ggml from (required; empty is a hard error unless STRATA_ALLOW_GGML_FETCH=ON)")
+# FORK (fukuro-kun/Strata): fail closed by default, see top-level CMakeLists.txt / docs/OFFLINE_BUILD.md.
+option(STRATA_ALLOW_GGML_FETCH "allow FetchContent download of pinned llama.cpp when STRATA_GGML_DIR is empty" OFF)
 if(STRATA_NATIVE_EXPERTS)
   set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
   set(GGML_STATIC ON CACHE BOOL "" FORCE)
@@ -168,6 +171,14 @@ if(STRATA_NATIVE_EXPERTS)
   set(GGML_NATIVE ON CACHE BOOL "" FORCE)
   if(STRATA_GGML_DIR)
     add_subdirectory(${STRATA_GGML_DIR}/ggml ${CMAKE_BINARY_DIR}/ggml EXCLUDE_FROM_ALL)
+  elseif(NOT STRATA_ALLOW_GGML_FETCH)
+    # FORK (fukuro-kun/Strata): fail closed, as in the top-level CMakeLists — see docs/OFFLINE_BUILD.md.
+    message(FATAL_ERROR
+      "STRATA_GGML_DIR is not set. Fork policy (offline build): pass "
+      "-DSTRATA_GGML_DIR=<local pinned llama.cpp checkout> (pinned commit "
+      "3cf03257f219afbe7334045ff7c6a06ac68c627d). To use upstream's FetchContent "
+      "path instead — deliberate, documented procurement only — configure with "
+      "-DSTRATA_ALLOW_GGML_FETCH=ON.")
   else()
     include(FetchContent)
     FetchContent_Declare(strata_llamacpp

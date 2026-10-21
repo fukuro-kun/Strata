@@ -27,8 +27,13 @@ td.log
 
 # created by setup.py on the user's machine
 /.venv/
+/.venv-offline/
 /build/
 /third_party/llama.cpp
+/third_party/.llama.cpp.git-tmp
+# fork wheelhouse: binaries stay local, only MANIFEST.sha256 is tracked
+/wheelhouse/*.whl
+/wheelhouse/*.tar.gz
 /models/
 /packs/
 /mtp/
