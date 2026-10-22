@@ -363,6 +363,15 @@ class GpuBusy(RuntimeError):
         self.retry_after = retry_after
 
 
+def config_bool(cfg: dict, key: str, default: bool = False) -> bool:
+    """Read a config flag strictly: missing means default; anything but true/false (a "yes" string, a 1,
+    null) is a config error, not a truthy value."""
+    value = cfg.get(key, default)
+    if not isinstance(value, bool):
+        raise SystemExit(f'[strata] config "{key}" must be true or false, not {value!r}')
+    return value
+
+
 def unload_wait(value, default: float) -> float:
     """#1997: the `wait` of POST /unload?wait=...: absent / 0 / false: 0 (answer "busy" at once, as before); 1 / true /
     yes: `default` seconds; a number of seconds above 1: that long (at most an hour)."""
@@ -768,7 +777,10 @@ class StrataEngine:
             tl.last = value
 
     def __init__(self, exe: str, args: list[str], cwd: str | None = None, log: str | None = None,
-                 env: dict | None = None, lazy: bool = False, cpus: list[int] | None = None, _attempt: int = 0):
+                 env: dict | None = None, lazy: bool = False, cpus: list[int] | None = None, _attempt: int = 0,
+                 _start_retries: int | None = None):
+        # _start_retries: interne Wiederholungen transiente Startfehler (STRATA_START_RETRIES).  None = der
+        # normale Default; die Auto-Recovery übergibt 0, damit ein gebuchter Versuch genau ein nativer Start ist.
         self.spawn = (exe, list(args), cwd, log, env, False, cpus)   # to start it again after it died (issue #27)
         self.session_save_reclaim = '--session-save-reclaim' in args
         paths = {k: v for k, v in zip(args, args[1:]) if k in ("--native", "--pack")}
@@ -860,7 +872,8 @@ class StrataEngine:
                     self.log.close()
             except (OSError, subprocess.TimeoutExpired):
                 pass
-            if not timed_out and _attempt < START_RETRIES and \
+            start_retries = START_RETRIES if _start_retries is None else max(0, _start_retries)
+            if not timed_out and _attempt < start_retries and \
                     transient_start_failure(log, log_start, time.monotonic() - spawned_at, self.proc.returncode):
                 wait_s = 2.0 * (2 ** _attempt)              # 2, 4, 8 s: the previous process's GPU queues go away
                 exit_words = engine_exit_words(self.proc.returncode)
@@ -868,14 +881,14 @@ class StrataEngine:
                     print(f"[strata] the engine stopped while the GPU runtime was starting (most often right after "
                           f"another engine exited, whose GPU queues were still being released"
                           f"{'; ' + exit_words if exit_words else ''}): starting it again in {wait_s:.0f} s "
-                          f"(try {_attempt + 2} of {START_RETRIES + 1})", flush=True)
+                          f"(try {_attempt + 2} of {start_retries + 1})", flush=True)
                 else:                                       # an exit with nothing in the log: say only what is known
                     print(f"[strata] the engine exited before it wrote anything to its log"
                           f"{' (' + exit_words + ')' if exit_words else ''}; it may be a GPU runtime that was not "
-                          f"ready yet: starting it again in {wait_s:.0f} s (try {_attempt + 2} of {START_RETRIES + 1})",
+                          f"ready yet: starting it again in {wait_s:.0f} s (try {_attempt + 2} of {start_retries + 1})",
                           flush=True)
                 time.sleep(wait_s)
-                StrataEngine.__init__(self, exe, args, cwd, log, env, lazy, cpus, _attempt + 1)
+                StrataEngine.__init__(self, exe, args, cwd, log, env, lazy, cpus, _attempt + 1, start_retries)
                 return
             why = (f"the engine did not report READY within {ENGINE_READY_S:.0f} s" if timed_out else
                    "the engine exited before it was ready")
@@ -1047,11 +1060,12 @@ class StrataEngine:
             if not done:
                 out.put(None)
 
-    def restart(self, tries: int = 3):
+    def restart(self, tries: int = 3, *, start_retries: int | None = None):
         """Start the engine again (the same command) after it died; the new process has its own line queue.
         close() ends and waits for the old process first (EngineStuck when it cannot be ended).  A start that still
         exits before READY - a dead engine's VRAM can take a while to come back, notably on ROCm - is retried
-        (PR #637)."""
+        (PR #637).  start_retries begrenzt die internen Wiederholungen transienter Startfehler pro Versuch
+        (Default STRATA_START_RETRIES); die Auto-Recovery fährt mit 0, damit ihr Budget exakt native Starts zählt."""
         info = dict(self.info)
         self.starting = True                     # prepare() answers 503 "starting" meanwhile (#344)
         try:
@@ -1062,7 +1076,7 @@ class StrataEngine:
                 # (0)".  __init__ clears `ended` itself once READY (before its pump thread can set it again).
                 self.ended = True
                 try:
-                    self.__init__(*self.spawn)
+                    self.__init__(*self.spawn, _start_retries=start_retries)
                     break
                 except RuntimeError:
                     try:
@@ -3102,6 +3116,15 @@ class Service:
         self.tool_call_recovery = False                   # opt-in: tool calls in forms next to the template's
         self.images = None                                # serve/images.py's ImageGen when the config has "images"
         self.restore_after_load = None                    # a session file an image job saved before it unloaded
+        # Engine-Auto-Recovery (opt-in, die Config "engine_auto_restart"): ein gestorbener Engine-Prozess wird
+        # zwischen den Requests neu gestartet, im Rahmen eines strikten Versuchsbudgets.  Nur echte
+        # StrataEngines werden überwacht.
+        self.engine_auto_restart = False
+        self._recovery_thread = None
+        self._recovery_stop = threading.Event()
+        self._recovery_attempts = collections.deque()      # monotonic-Versuchszeiten, rollierendes Fenster (status_lock)
+        self._recovery_state = "disabled"                  # disabled|idle|restarting|backoff|exhausted|stopped
+        self._recovery_clock = time.monotonic              # die Tests injizieren eine Stub-Uhr für deterministische Ticks
         self.stop_ids = set(tokenizer.encode(IM_END, parse_special=True) +
                             tokenizer.encode("<|endoftext|>", parse_special=True))
 
@@ -3313,9 +3336,13 @@ class Service:
         except Exception:
             return None
 
-    def ensure_loaded(self):
+    def ensure_loaded(self, restart_tries: int | None = None):
         """Start the engine if it is not running (unloaded, or it died - issue #27), after the before_load hook and
-        the free-VRAM check.  The caller holds self.fifo."""
+        the free-VRAM check.  The caller holds self.fifo.  restart_tries: die Startversuche der Engine - die
+        Auto-Recovery fragt genau einen an (ihr eigenes Budget regelt die Abstände) und fährt ihn ohne interne
+        transiente Wiederholungen (start_retries=0), damit ein gebuchter Versuch genau ein nativer Start ist;
+        None bleibt der Default-Pfad (argumentfrei, StrataEngine dann 3 Versuche) und funktioniert auch für
+        Engines, deren restart() keine Argumente nimmt."""
         if self.loaded() and not self._vision_down():
             return
         hook_failed = None
@@ -3384,7 +3411,10 @@ class Service:
             print(f"[strata] the engine had stopped (exit code {code}); starting it again "
                   "(a minute or two) ...", flush=True)
         try:
-            self.engine.restart()
+            if restart_tries is None:               # the default path stays argument-free: engines whose restart()
+                self.engine.restart()               # takes no tries (e.g. the resident test engine) keep working
+            else:
+                self.engine.restart(restart_tries, start_retries=0)
         except Exception:
             if vision_started:
                 self.vision.unload()
@@ -3435,15 +3465,31 @@ class Service:
         """The server window's line for an engine that died (or was ended, #481) in the middle of a request."""
         note = self.engine.death_note() if hasattr(self.engine, "death_note") else ""
         log = getattr(self.engine, "log_path", None)
-        print(f"[strata] {e}. {note} The next request starts the engine again."
+        # mit eingeschalteter Auto-Recovery versucht der Watchdog den Neustart selbst (innerhalb seines
+        # Versuchsbudgets, kein Versprechen) - "next request" ist dann nicht der einzige Weg
+        again = ("Die Auto-Recovery versucht, die Engine innerhalb des Versuchsbudgets selbst neu zu starten."
+                 if self.engine_auto_restart and self._recovery_eligible()
+                 else "The next request starts the engine again.")
+        print(f"[strata] {e}. {note} {again}"
               f"{' Its log: ' + log if log else ''}", flush=True)
 
     def load(self):
-        """POST /load and every generation request: start the engine now if it is unloaded (raises GpuBusy)."""
+        """POST /load and every generation request: start the engine now if it is unloaded (raises GpuBusy,
+        EngineDied, EngineStuck - und unter engine_auto_restart EngineStarting, solange ein (Re-)Start läuft)."""
         # a request is on its way: the idle thread must not unload between this and the request's own start
         self.last_request_at = time.time()
         if self.loaded() and not self._vision_down():
             return
+        if self.engine_auto_restart:
+            # #344: unter der Auto-Recovery läuft der (Re-)Start ohne Request - ein Request soll dann 503
+            # "starting" bekommen statt still an der fifo zu warten.  Ohne das Opt-in bleibt das bisherige
+            # Verhalten: anstellen und auf die fifo warten (prepare() fängt "starting" sonst selbst ab).
+            # _recovery_state deckt zusaetzlich das Vorlauf-Fenster der Recovery ab (before_load-Hook,
+            # VRAM-Check): die Recovery haelt die fifo schon, bevor engine.starting gesetzt ist
+            with self.status_lock:
+                restarting = self._recovery_state == "restarting"
+            if restarting or getattr(self.engine, "starting", False):
+                raise EngineStarting("the engine is starting (a minute or two); try again shortly")
         trace = getattr(self.request_trace, "record", None)
         waiting = time.perf_counter()
         with self.status_lock:                          # #1603: waiting for the fifo to start the engine is queued, not nothing
@@ -3491,17 +3537,21 @@ class Service:
         if not self.fifo.acquire(blocking=False):
             return "busy"
         try:
-            if not self.engine.alive():
-                return "not loaded"
             with self.status_lock:
-                if self.status.get("busy") or self.status.get("queued"):
+                if self.status.get("busy") or self.status.get("queued") or self.live_reqs:
                     return "busy"
             if idle_for is not None and time.time() - (self.last_request_at or self.started_at) < idle_for:
                 return "busy"
+            # die Engine kann bereits von selbst geendet sein: das Entladen bleibt trotzdem die Absicht des
+            # Betreibers, also ordentlich aufraeumen - engine.unload() schliesst den Prozess-Handle und vermerkt
+            # die Absicht (die Auto-Recovery darf sie nicht wiederbeleben), die Vision kann ebenfalls noch halten
+            dead = not self.engine.alive()
             self.engine.unload()
             if self.vision is not None and hasattr(self.vision, "unload"):
                 self.vision.unload()
             self.vision_held = False
+            if dead:
+                return "not loaded"         # die bisherige Antwort: sie war schon weg, ist jetzt sauber entladen
             print(f"[strata] model unloaded{f' after {idle_for:.0f} s idle' if idle_for else ''}; "
                   "the next request loads it again", flush=True)
             return "unloaded"
@@ -3521,6 +3571,154 @@ class Service:
                 except EngineStuck as e:                # tried again at the next turn; the thread keeps running
                     print(f"[strata] idle unload: {e}", flush=True)
         threading.Thread(target=loop, daemon=True).start()
+
+    RECOVERY_POLL_S = 1.0          # wie oft der Recovery-Worker die Engine ansieht
+    RECOVERY_WINDOW_S = 900.0      # rollierendes Fenster, in dem das Versuchsbudget zählt
+    RECOVERY_MAX_ATTEMPTS = 3      # automatische Starts pro Fenster (auch ein kurzlebiger Start zählt)
+    RECOVERY_MIN_GAP_S = 15.0      # mindestens so viel Abstand zwischen zwei automatischen Starts (monotonic)
+
+    def _recovery_eligible(self) -> bool:
+        """Nur ein echtes StrataEngine wird überwacht: Mock-Engines, Replica-Wrapper und alle anderen Engines
+        ohne genau diesen Vertrag bleiben unbeaufsichtigt (sie haben eine eigene Steuerung oder keine)."""
+        return type(self.engine) is StrataEngine
+
+    def recovery_tick(self, now: float | None = None) -> str:
+        """Ein Überwachungsdurchlauf, auch einzeln aufrufbar (Tests fahren ihn mit einer Stub-Uhr): eine gestorbene
+        Engine im Versuchsbudget neu starten.  Fasst nie eine lebende, absichtlich entladene oder gerade
+        (re)startende Engine an und lädt nie, solange ein Request läuft, wartet oder noch ausläuft.
+        -> der neue Zustand."""
+        now = self._recovery_clock() if now is None else now
+        if not self.engine_auto_restart or not self._recovery_eligible():
+            state = "disabled"
+        elif self._recovery_stop.is_set():
+            state = "stopped"
+        else:
+            eng = self.engine
+            if eng.alive() or getattr(eng, "unloaded", False) or getattr(eng, "starting", False):
+                state = "idle"
+            elif not self.fifo.acquire(blocking=False):
+                state = "idle"                      # ein Turn (oder ein manuelles Laden) hält die fifo
+            else:
+                try:
+                    # erneut unter der fifo prüfen: der oben gelesene Zustand kann schon veraltet sein - und ein
+                    # Stop, der seit dem Vorsicht ankam, darf nichts mehr starten
+                    if eng.alive() or getattr(eng, "unloaded", False) or getattr(eng, "starting", False):
+                        state = "idle"
+                    elif self._recovery_stop.is_set():
+                        state = "stopped"
+                    else:
+                        with self.status_lock:
+                            # ein Abschnitt: Bedingungen lesen und den Versuch buchen (die fifo serialisiert
+                            # ohnehin; gebucht wird erst, wenn wirklich gestartet wird)
+                            busy = bool(self.status.get("busy")) or (self.status.get("queued") or 0) > 0 \
+                                or bool(self.live_reqs)
+                            while self._recovery_attempts and \
+                                    now - self._recovery_attempts[0] >= self.RECOVERY_WINDOW_S:
+                                self._recovery_attempts.popleft()
+                            attempts = len(self._recovery_attempts)
+                            gap = self.RECOVERY_MIN_GAP_S - (now - self._recovery_attempts[-1]) \
+                                if self._recovery_attempts else 0.0
+                            if busy:
+                                state = "idle"      # ein von der toten Engine übriger Request läuft noch aus
+                            elif attempts >= self.RECOVERY_MAX_ATTEMPTS:
+                                # Budget vor der Gap prüfen: ein volles Fenster ist "exhausted" (retry_after
+                                # = restliche Fensterzeit), nicht "backoff" (das würde 15 s versprechen)
+                                state = "exhausted"
+                            elif gap > 0:
+                                state = "backoff"
+                            else:
+                                self._recovery_attempts.append(now)   # der Versuch zählt, egal wie er ausgeht
+                                self._recovery_state = "restarting"
+                                state = "restarting"
+                        if state == "restarting":
+                            if self._recovery_stop.is_set():
+                                # Stop zwischen Buchung und Start: nicht mehr starten; der gebuchte Versuch
+                                # war nie ein nativer Start und wird deshalb wieder ausgebucht
+                                with self.status_lock:
+                                    self._recovery_attempts.pop()
+                                state = "stopped"
+                            else:
+                                try:
+                                    print(f"[strata] die Engine wurde beendet; die Auto-Recovery startet sie neu "
+                                          f"(Versuch {attempts + 1} von {self.RECOVERY_MAX_ATTEMPTS} in "
+                                          f"{self.RECOVERY_WINDOW_S:g} s)", flush=True)
+                                    self.ensure_loaded(restart_tries=1)
+                                    state = "idle"
+                                except Exception as e:  # noqa: BLE001 - geloggt und budgetiert: der nächste Tick wartet die Gap ab
+                                    print(f"[strata] Auto-Recovery: der Neustart ist fehlgeschlagen ({e})",
+                                          flush=True)
+                                    with self.status_lock:
+                                        # der gebuchte Versuch zählt voll: war es der letzte im Fenster, ist
+                                        # das Budget erschöpft (nicht nur die 15-s-Gap offen)
+                                        state = ("exhausted" if len(self._recovery_attempts)
+                                                 >= self.RECOVERY_MAX_ATTEMPTS else "backoff")
+                finally:
+                    self.fifo.release()
+        # ein Stop mitten im Tick (z. B. während ensure_loaded lief) endet immer in "stopped"
+        with self.status_lock:
+            self._recovery_state = "stopped" if self._recovery_stop.is_set() and state != "disabled" else state
+            return self._recovery_state
+
+    def _recovery_loop(self):
+        while not self._recovery_stop.is_set():
+            try:
+                self.recovery_tick()
+            except Exception as e:  # noqa: BLE001 - ein Ausrutscher darf den Wächter nicht beenden
+                print(f"[strata] Auto-Recovery: {e}", flush=True)
+            self._recovery_stop.wait(self.RECOVERY_POLL_S)
+
+    def start_engine_recovery(self):
+        """Startet den Watchdog-Thread (opt-in; idempotent).  Wird von serve() nach erfolgreichem Bind gerufen."""
+        if not self.engine_auto_restart:
+            with self.status_lock:
+                self._recovery_state = "disabled"
+            return
+        if not self._recovery_eligible():
+            with self.status_lock:
+                self._recovery_state = "disabled"
+            print("[strata] engine_auto_restart ist gesetzt, aber die Engine ist keine echte StrataEngine: "
+                  "keine Auto-Recovery", flush=True)
+            return
+        if self._recovery_thread is not None and self._recovery_thread.is_alive():
+            return
+        self._recovery_stop.clear()
+        with self.status_lock:
+            self._recovery_state = "idle"
+        self._recovery_thread = threading.Thread(target=self._recovery_loop, daemon=True,
+                                                 name="engine-recovery")
+        self._recovery_thread.start()
+        print(f"[strata] Engine-Auto-Restart an: eine gestoppte Engine wird wieder gestartet "
+              f"(höchstens {self.RECOVERY_MAX_ATTEMPTS} mal in {self.RECOVERY_WINDOW_S:g} s, "
+              "engine_auto_restart)", flush=True)
+
+    def stop_engine_recovery(self):
+        """Stoppt den Watchdog und wartet einen bereits laufenden Start ab (er muss vor dem close der Engine
+        fertig sein - ein Abbruch mitten im Start liefe eine halb gestartete Engine zurück)."""
+        self._recovery_stop.set()
+        t = self._recovery_thread
+        if t is not None:
+            t.join()
+            self._recovery_thread = None
+        with self.status_lock:
+            self._recovery_state = "stopped"
+
+    def engine_recovery_status(self) -> dict:
+        """Der additive Status des Watchdogs für /health und /v1/status - ein Snapshot, thread-sicher, ohne
+        Interna (keine Fehlertexte, keine Pfade)."""
+        enabled = bool(self.engine_auto_restart) and self._recovery_eligible()
+        if not enabled:
+            return {"enabled": False, "state": "disabled", "attempts_in_window": 0, "retry_after_s": None}
+        now = self._recovery_clock()
+        with self.status_lock:
+            attempts = [t for t in self._recovery_attempts if now - t < self.RECOVERY_WINDOW_S]
+            state = self._recovery_state
+        retry = None
+        if state == "backoff" and attempts:
+            retry = max(0.0, attempts[-1] + self.RECOVERY_MIN_GAP_S - now)
+        elif state == "exhausted" and attempts:
+            retry = max(0.0, attempts[0] + self.RECOVERY_WINDOW_S - now)
+        return {"enabled": True, "state": state, "attempts_in_window": len(attempts),
+                "retry_after_s": round(retry, 1) if retry is not None else None}
 
     def set_shared(self, defaults) -> dict:
         """The Chat settings every client gets for what it leaves out; {} / None = clients use their own again."""
@@ -3759,6 +3957,7 @@ class Service:
             "activity": {"requests": totals["requests"] + int(busy), "in_flight": int(busy) + int(s.get("queued") or 0),
                          "last_request_at": int(last_at) if last_at else None},
             "last_timings": last_t,
+            "engine_recovery": self.engine_recovery_status(),
             "vram": dict((getattr(self.engine, "info", {}) or {}).get("vram") or {},
                          elastic=bool((getattr(self.engine, "info", {}) or {}).get("vram_elastic"))),
             "machine": {
@@ -5338,7 +5537,8 @@ def make_handler(svc: Service):
                 self._json(200, {"status": "ok", "max_context": svc.reported_ctx(), "model": svc.model,
                                  "images": svc.vision is not None, "api_key": bool(svc.api_key),
                                  "image_generation": svc.images is not None,
-                                 "loaded": svc.loaded(), "service": "strata"})
+                                 "loaded": svc.loaded(), "service": "strata",
+                                 "engine_recovery": svc.engine_recovery_status()})
             elif path.startswith("/v1/images/files/"):
                 # response_format url: the name (32 random hex digits) is the access, as an OpenAI image URL is
                 f = svc.images.file(path[len("/v1/images/files/"):]) if svc.images is not None else None
@@ -5452,7 +5652,9 @@ def make_handler(svc: Service):
                 try:
                     svc.load()
                     self._json(200, {"status": "loaded"})
-                except GpuBusy as e:
+                except (GpuBusy, EngineStarting, EngineDied, EngineStuck) as e:
+                    # laufender (Re-)Start (#344), tote oder haengende Engine: 503 JSON statt SocketDrop;
+                    # Retry-After bleibt den Refusals vorbehalten, die einen liefern (GpuBusy, #1997)
                     ra = getattr(e, "retry_after", None)
                     self._json(503, {"error": {"type": "server_error", "message": str(e)}},
                                headers={"Retry-After": int(ra)} if ra else None)
@@ -6107,6 +6309,10 @@ class Server(ThreadingHTTPServer):
             super().handle_error(request, client_address)
 
     def server_close(self):
+        # the watchdog serve() started stops with the server (before the engine's own close elsewhere)
+        svc = getattr(self, "svc", None)
+        if svc is not None and hasattr(svc, "stop_engine_recovery"):
+            svc.stop_engine_recovery()
         # the hardware sampler serve() started for this server stops with it (test isolation: every Service a test
         # started used to leave its sampler running, 21 of them after test_responses, which slowed test_parallel's timing)
         tel = getattr(getattr(self, "svc", None), "telemetry", None)
@@ -6363,7 +6569,17 @@ def serve(svc: Service, host="127.0.0.1", port=8095) -> ThreadingHTTPServer:
     httpd = Server((host, port), make_handler(svc))
     httpd.svc = svc
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    svc.start_engine_recovery()                      # opt-in-Watchdog; idempotent, erst nach erfolgreichem Bind
     return httpd
+
+
+def shutdown_closers(httpd: "ThreadingHTTPServer | None", svc: Service, engine, vision, hub) -> list:
+    """Die Shutdown-Reihenfolge von main(): zuerst der HTTP-Server, dann der Recovery-Worker (er joint einen
+    laufenden Neustart, damit die Engine nicht mitten im Start geschlossen wird), dann die Engine selbst,
+    danach Vision und der MCP-Hub.  Abwesende Teile (None) sind nicht in der Liste."""
+    return [c for c in (httpd.shutdown if httpd is not None else None, svc.stop_engine_recovery,
+                        getattr(engine, "close", None), vision.shutdown if vision else None,
+                        hub.close if hub is not None else None) if c is not None]
 
 
 def origins_of(value, key: str, wildcard: bool) -> list[str]:
@@ -6865,6 +7081,8 @@ def main() -> int:
     if not isinstance(recovery, bool):
         raise SystemExit(f"[strata] config \"tool_call_recovery\" must be true or false, not {recovery!r}")
     svc.tool_call_recovery = recovery
+    # opt-in: der Watchdog startet eine gestorbene Engine wieder (nur echte StrataEngines)
+    svc.engine_auto_restart = config_bool(cfg, "engine_auto_restart", False)
     etu = cfg.get("env_to_user", False)                # opt-in: see frontend._env_to_user
     if not isinstance(etu, bool):
         raise SystemExit(f"[strata] config \"env_to_user\" must be true or false, not {etu!r}")
@@ -6955,9 +7173,7 @@ def main() -> int:
             time.sleep(1)                               # Windows never delivers Ctrl+C to an untimed Event.wait()
     except KeyboardInterrupt:
         print("\n[strata] stopping (Ctrl+C again to end the engine at once) ...", flush=True)
-        closers = [httpd.shutdown, getattr(engine, "close", None), vision.shutdown if vision else None,
-                   hub.close if hub is not None else None]
-        for close in filter(None, closers):
+        for close in shutdown_closers(httpd, svc, engine, vision, hub):
             try:
                 close()
             except KeyboardInterrupt:                   # a second Ctrl+C: don't wait for the engine to free its memory

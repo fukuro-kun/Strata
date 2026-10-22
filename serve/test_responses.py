@@ -277,18 +277,22 @@ class NoLeakedSampler(unittest.TestCase):
 
     def test_server_close_ends_the_sampler(self):
         import threading
-        import time
         tok = ByteTokenizer()
-        before = sum(1 for t in threading.enumerate() if t.name.endswith("(_loop)"))
-        httpd = serve(Service(MockEngine(tok, ANSWER, max_context=16384), tok, TEMPLATE), port=0)
-        self.assertEqual(sum(1 for t in threading.enumerate() if t.name.endswith("(_loop)")), before + 1)
+        svc = Service(MockEngine(tok, ANSWER, max_context=16384), tok, TEMPLATE)
+        httpd = serve(svc, port=0)
+        # Aufräumen sofort registrieren: ein Assert-Fehlschlag darf Server und Sampler nicht weiterlaufen lassen
+        self.addCleanup(lambda: (httpd.shutdown(), httpd.server_close()))
+        # nicht global alle "*(_loop)"-Threads zählen: fremde Sampler anderer Tests enden asynchron zwischen
+        # zwei Messungen und verfaelschen den Count.  Stattdessen genau den Thread dieses Servers finden -
+        # er ist an die eigene Telemetry-Instanz gebunden (_target ist ihre _loop-Methode)
+        sampler = next((t for t in threading.enumerate()
+                        if getattr(getattr(t, "_target", None), "__self__", None) is svc.telemetry), None)
+        self.assertIsNotNone(sampler, "kein Sampler-Thread der eigenen Telemetry gefunden")
+        self.assertTrue(sampler.is_alive(), "der Sampler laeuft nicht - der Test wuerde sonst nichts pruefen")
         httpd.shutdown()
         httpd.server_close()
-        for _ in range(50):
-            if sum(1 for t in threading.enumerate() if t.name.endswith("(_loop)")) == before:
-                break
-            time.sleep(0.1)
-        self.assertEqual(sum(1 for t in threading.enumerate() if t.name.endswith("(_loop)")), before)
+        sampler.join(timeout=5)                 # server_close -> telemetry.close() beendet den Loop
+        self.assertFalse(sampler.is_alive(), "der eigene Sampler-Thread laeuft nach server_close weiter")
 
 
 # ------------------------------------------------------------------------------------------------ over HTTP

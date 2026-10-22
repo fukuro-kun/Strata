@@ -579,6 +579,7 @@ server, three server options (all off by default; also as keys in `strata-<model
 | `--min-free-vram-mib 11000` | `"min_free_vram_mib": 11000` | load an unloaded model only when that much VRAM is free (it waits up to 15 s for memory being given back), else answer **503** "the GPU is in use by another program" instead of starting into what a game left (with several GPUs it checks the first one) |
 | `--before-load "cmd"` | `"before_load": "cmd"` or `["cmd", "arg"]` | a command run before the model is loaded again, e.g. one that unloads another server's model |
 | | `"before_load_timeout_s": 120` | how long that command may run (default 120 s). When it exits non-zero or times out (a peer that is not running makes `curl` exit 7), the free VRAM decides: with `min_free_vram_mib` set and not enough free, the model is **not** loaded and the request gets **503** with `Retry-After`; with room (or no limit set) it loads, with a warning in the log. `"before_load_strict": true` always refuses on a failure; `"before_load_ignore_failure": true` always loads |
+| | `"engine_auto_restart": true` | opt-in watchdog (default `false`, config only): an engine process that died between requests is restarted - see below |
 
 `POST /unload` unloads it now (`409` while a request is running; `POST /unload?wait=1` waits for the running turn first, up to 300 s, or `?wait=<seconds>`, so a second server can really free the card) and `POST /load` loads it ahead of a request (both
 with `Content-Type: application/json`, e.g. `curl -X POST -H "Content-Type: application/json" localhost:8080/unload`);
@@ -588,6 +589,29 @@ are on; it is started again first, as at a start - so their VRAM and RAM go stra
 the OS file cache, so loading again takes seconds while that RAM is not needed elsewhere. Measured on an RTX 5060 Ti
 16 GB with Q2_0 in the low-RAM mode: unloading takes ~0.3 s, and a request to an unloaded model answered after
 4.6 s (text) or 14.7 s (a picture, image encoder on the CPU).
+
+**Restarting a stopped engine on its own (opt-in).** With `"engine_auto_restart": true` in
+`strata-<model>.json` a watchdog thread (looks once a second) restarts the engine when the engine process has
+ended between requests - otherwise a crash or a `SIGTERM` leaves a healthy-looking server that answers `/slots`
+with `[]` until somebody posts `/load` or a request arrives. The restart takes the same load path a request
+takes - `before_load`, the `min_free_vram_mib` check, the vision helper - so a refused load (not enough free
+VRAM, a failing hook, a missing GPU) counts as a spent attempt. The budget is strict: at most 3 automatic
+starts in a rolling 900 s window, at least 15 s apart; an exhausted budget leaves the engine stopped in state
+`exhausted` until the window has room again (`POST /load` keeps working by hand). A recovery attempt is at most
+one native spawn without the inner transient constructor retries (`restart(tries=1, start_retries=0)`); the
+manual `/load` and request paths keep their usual retries. An engine unloaded on purpose (`POST /unload`, the
+idle unload, a never-loaded model) is left alone, as is one that is alive, busy, queued, draining or already
+starting; the request that may have died with the engine is never repeated. `/health` and `/v1/status` report
+the state under `"engine_recovery"` (`enabled`, `state` - `disabled`, `idle`, `restarting`, `backoff`,
+`exhausted`, `stopped` -, `attempts_in_window`, `retry_after_s` - at `backoff` the gap until the next attempt,
+at `exhausted` the rest of the 900 s window); `/slots` stays `[]` until the engine is ready again. A
+`POST /load` during a running (re)start or after a failed load answers 503 (`server_error`) instead of
+dropping the connection; a successful load still answers 200. Only a native engine is supervised, not a
+replica or other engine wrapper. At shutdown the watchdog stops before the engine's own `close()`; a restart
+already running is joined and may finish - the readiness wait (`ENGINE_READY_S`, default 900 s) only bounds
+the wait for READY, hooks and cleanup run on top. It heals the stopped engine, not what stopped it - an
+engine that dies again while loading runs into the budget. Diagnosis: `"engine_recovery"` in `/v1/status`
+and the `[strata] Auto-Recovery` log lines.
 
 **Giving part of the VRAM back while it keeps serving (#533, opt-in, one NVIDIA GPU; every request and answer:
 [VRAM_ELASTIC.md](VRAM_ELASTIC.md)).** With `"vram_elastic": true`
