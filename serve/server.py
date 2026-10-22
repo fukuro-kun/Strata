@@ -2268,7 +2268,10 @@ class Vision:
 
     def _start(self):
         args, log, env = self.spawn
-        self._ensure_dir()
+        # fork fix: under self.lock — _ensure_dir clears self.cache, which encode() mutates under the same lock
+        # (a clear between its `key in cache` check and pop() would be a KeyError, an insert-after-clear a stale entry)
+        with self.lock:
+            self._ensure_dir()
         # cwd is the encoder's directory: the ENC lines name the files relative to it (#480: no space in the line)
         self.proc = popen("the image encoder", args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                           stderr=log or subprocess.DEVNULL, text=True, encoding="utf-8", bufsize=1, env=env,

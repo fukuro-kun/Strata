@@ -4,6 +4,7 @@
 """
 import io
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -21,6 +22,7 @@ class WorkDir(unittest.TestCase):
             v.spawn = (["strata-vision"], None, None)
             v.dir = Path(tmp) / "strata-vision-gone"
             v.cache = {"k": (v.dir / "k.sve", 4)}
+            v.lock = threading.Lock()            # fork: _start's _ensure_dir runs under the cache lock
             seen = []
 
             def fake_popen(*a, **k):
