@@ -119,6 +119,15 @@ mit Klartext ab. Doku: `docs/OFFLINE_BUILD.md` (Python-Deps-Abschnitt).
 **Akzeptanz erfüllt:** Prozess-Doku + erster dokumentierter Review vorhanden;
 keine automatische Synchronisation eingerichtet.
 
+**Sync-Stand 2026-10-22:** Option-C-Fixpaket gemergt als `2a45eb38` und auf
+beiden Produktiv-Hosts deployed (Rollback über `previous` scharf): 6
+Upstream-Fixes (spec_pos-Sentinel, `STRATA_SPEC_WATCH`-Stall-Diagnose,
+NaN-Retry, HTTP 503 bei Engine-Startfail, Tool-Call-Envelopes +
+deklarierte-Tools-Filter, Vision-Workfolder-Recreation) plus 2
+Fork-Korrekturen aus der Gegenprüfung (Watchdog-Done-Flag `ccf4d0a1`,
+Vision-Cache-Lock `6ef6931a`). Review:
+`docs/upstream-reviews/REVIEW_2026-10-22_6ef6931adba1.md` (SAUBER).
+
 ### P5 — Frontend — **ENTSCIEDEN 2026-10-17: No-Go für Robert**
 
 Evaluierung in `docs/P5_ROBERT_FRONTEND_EVAL.md`; fukuro hat die
