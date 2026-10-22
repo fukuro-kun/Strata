@@ -95,8 +95,10 @@ zurückgeschwenkt. Der Dienst wird per Default neu gestartet.
 Default ist `systemd --user` (kein sudo). System-Units (produktiv, mit
 sudo) werden beim Switch durch die Fork-Fassung ersetzt — die Datei
 liegt im InferenzQuelle-Repo (`services/uranus/strata-swift-uranus.service`,
-Branch `feat/strata-fork-deploy`). Auf Hosts ohne produktive Unit
-(eris) genügt die generierte User-Unit `strata-fork.service`.
+Branch `feat/strata-fork-deploy`). Auf eris läuft die produktive
+User-Unit `eris-strata.service` (InferenzQuelle-Profil, policy-gesteuert);
+die generierte `strata-fork.service` war nur der P6-Test-Pfad und ist
+dort entfernt.
 
 ### Switch-Runbook (pro Host, nach Eval-/GPU-Fenster)
 
@@ -108,13 +110,16 @@ sudo systemctl enable --now strata-swift-uranus   # startet current/run.sh :1808
 curl -s 127.0.0.1:18086/slots | head    # readiness
 # Chat-Completion-Probe, dann InferenzQuelle-Router-Sicht (janus :8010)
 
-# eris (User-Unit, kein sudo):
-systemctl --user enable --now strata-fork   # Config-Port 8080
-curl -s 127.0.0.1:8080/slots | head
+# eris (User-Unit, kein sudo — Profil-/Policy-gesteuert):
+systemctl --user start eris-strata.service   # ExecStart → current/run.sh, Port 8080
+curl -s 127.0.0.1:8080/slots | head   # Bearer nötig — 401 ohne Auth ist erwartet
 
 # Rollback (beide):
 ~/git/strata-fork/tools/offline/rollback.sh --deploy-root ~/strata-deploy
 ```
 
 Vor dem ersten produktiven Start eines Hosts einmalig das Rollback
-real üben (deploy → rollback → redeploy).
+real üben (deploy → rollback → redeploy) — sofern ein vorheriger
+Produktivstand existiert. Auf Hosts ohne „davor" (eris): stattdessen die
+Fallback-Kette dokumentieren; `previous` wird erst beim zweiten Deploy
+befüllt und `rollback.sh` dort erstmalig verifiziert.

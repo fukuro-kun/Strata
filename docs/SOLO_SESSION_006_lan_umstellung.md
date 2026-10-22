@@ -107,7 +107,9 @@ Runbook: `docs/DEPLOYMENT.md`.
 - [x] 5. Abnahme `/slots` + Chat-Completion — **uranus bestanden**
        (echte Antwort, Router healthy); eris nach Eval-Ende
 - [x] 6. Rollback-Verifikation — **uranus real geübt** (Unit-Rollback auf
-       alten Checkout-Stack, verifiziert, zurück auf Fork); eris offen
+       alten Checkout-Stack, verifiziert, zurück auf Fork); eris
+       entschieden: keine Übung — kein Produktiv-„davor", Fallback-Kette
+       dokumentiert (SOLO_SESSION_008)
 - [x] 7. Doku: InferenzQuelle-Unit + Trilium-Updates + DEPLOYMENT.md/LOKAL.md
 - [x] 8. Review → Commit → Push (`feat/p6-lan-umstellung`)
 

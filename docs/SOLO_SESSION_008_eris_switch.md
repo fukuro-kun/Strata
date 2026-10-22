@@ -6,7 +6,7 @@ Der letzte verbleibende Strata-Dienst im LAN läuft auf dem Fork:
 eris-Switch nach Eval-Ende + alle Abnahmen + Restarbeiten aus den
 früheren Sessions. Branch: `feat/p6-lan-umstellung` (fortsetzen).
 
-## Stand 2026-10-17 ~15:00 — teilweise erledigt, GPU-Blocker
+## Historischer Stand 2026-10-17 ~15:00 — GPU-Blocker (spaeter behoben)
 
 - [x] Gate: eris-Eval beendet (keine eval.py/server/strata-Prozesse mehr)
 - [x] `systemctl --user enable --now strata-fork` ausgeführt → Engine
@@ -21,50 +21,87 @@ früheren Sessions. Branch: `feat/p6-lan-umstellung` (fortsetzen).
       effektiven Compiler aus `BUILD.json.cuda_dirs`; ninja-Probe deckt
       `.venv-offline/bin` ab — auf hydra verifiziert (`nvcc 13.4 +
       nvcc_path`), auf den Host-Checkouts per `git pull` verteilt.
-- [ ] Verbleibend: eris `/slots`- + Completion-Abnahme wenn GPU frei
-      (eris-chat pausiert/suspendiert oder nach Policy-Fenster);
-      eris-Rollback-Übung (= alter manueller Pfad, dokumentiert)
-- [ ] `~/strata-fork-configs/` + LOKAL/Trilium-Finalisierung eris → LIVE
-      (erst nach erfolgreicher Abnahme)
+- Dieser Startversuch scheiterte, weil `eris-chat` 15,6 GiB von 16 GiB
+  VRAM belegte. Das war ein echter damaliger Blocker; der spaetere Start
+  nach Freigabe des GPU-Speichers ist unten dokumentiert.
 
-## Schritte (Gate offen)
+## Aktueller Stand — Eris live auf dem Fork
 
-- [ ] 1. eris: `systemctl --user enable --now strata-fork`
-       (Deploy `~/strata-deploy/d18e7fea-20261017T033934Z`,
-       Config `strata-swift-iq2_xs.fork.json`, Port 8080)
-- [ ] 2. Abnahme: `curl 127.0.0.1:8080/slots` (Slot-Liste + ctx),
-       echte Chat-Completion (`max_tokens >= 500` — Thinking-Modell!),
-       API-Key aus Prozess-Env/alter Config ermitteln falls gesetzt
-- [ ] 3. Rollback-Übung eris: alten manuellen Start-Pfad dokumentieren
-       (eris hatte keine Unit — Rollback = alter `server.py`-Aufruf aus
-       Shell-History/Eval-Skript; kurz halten, dann zurück auf User-Unit)
-- [ ] 4. `~/strata-fork-configs/` und deploy-Stand in Host-Notizen
-       (Trilium `bf6qS9vQRJXl` + `Jm2JpHPKuZH6`) finalisieren;
-       LOKAL.md-Tabelle eris → LIVE
-- [ ] 5. ROADMAP LAN-Abschnitt: eris abhaken
+Read-only auf dem Host geprueft am 2026-10-18; keine Unit wurde dabei
+gestartet oder veraendert:
+
+- `eris-strata.service` ist **active (running)**, User-Unit, seit
+  2026-10-17 23:48 CEST. Sie ist `disabled` (nicht beim Boot aktiviert);
+  Lifecycle erfolgt profil-/policy-gesteuert.
+- Prozessbaum nutzt den Fork-Checkout fuer `.venv-offline` und
+  `serve/server.py`; Engine und Vision werden aus dem versionierten
+  Deploy-Verzeichnis ueber `strata-deploy/current/run.sh` gestartet.
+- `current` zeigt auf Deploy `d18e7fea-20261017T033934Z`; dies ist das
+  einzige Deploy-Verzeichnis, also ist kein `previous`-Symlink vorhanden.
+- Manifest: Fork-SHA `d18e7fea65f2d16626f69c4010ac457cb7ca7d77`,
+  Baseline `296b59d2f73c8f04a805df29c2fa97655adace78`, Host `eris`.
+  BUILD: Strata 0.1.44.1, sm_86, CUDA 12.4, lokaler Fork-Source-Hash
+  `b5006933b295d641`, Vision CPU, llama.cpp-Pin `3cf03257…`.
+- `/health` meldete `status=ok`, `loaded=true`, das Swift-1.5-IQ2_XS-
+  Modell und Vision aktiv. Eine erfolgreiche 400-Token-Completion mit
+  41,7 t/s steht im Servicejournal. Eine frische `/slots`-Anfrage ohne
+  Bearer-Key erhielt erwartungsgemaess 401; das bestaetigt nicht selbst
+  die authentifizierte Slot-Antwort. Die bestehende InferenzQuelle-
+  Dokumentation berichtet den Endpunkt als angebunden/healthy.
+- `eris-chat.service` war beim Check inactive; die GPU belegte
+  14955/16384 MiB. Der fruehere `cudaMalloc`-Fehler passt zum damaligen
+  VRAM-Konflikt und ist durch das spaetere Freigeben des GPU-Speichers
+  ueberwunden.
+- **Rollback-Frage entschieden (keine Uebung):** Ein "zurueck" setzt ein
+  Produktiv-"davor" voraus — auf Eris gab es keines: der alte manuelle
+  Stack war nie der InferenzQuelle-Endpunkt und ist kein Rollback-Ziel,
+  sondern ein anderer Betriebsmodus. Fallback-Kette: Unit stoppen →
+  Alias laeuft fail-closed ueber uranus (vor dem Switch der
+  Normalzustand); eris-chat bleibt lokaler Safe-Default.
+  `previous`/`rollback.sh` entsteht erst mit dem zweiten Deploy und
+  wird dort verifiziert (Mechanik P3-getestet, auf uranus geuebt).
+
+## Abschluss- und Restschritte
+
+- [x] 1. Fork-Deploy und Eris-Profil-Unit live: `eris-strata.service`
+       nutzt den Deploy-Stand `d18e7fea-20261017T033934Z` auf Port 8080.
+- [x] 2. Funktionsabnahme: Health loaded und erfolgreiche 400-Token-
+       Completion (41,7 t/s) im Servicejournal; InferenzQuelle-Changelog
+       dokumentiert den Router-Endpunkt als healthy. Fresh unauthenticated
+       `/slots`-Probe liefert 401; kein Geheimnis wurde ausgelesen.
+- [x] 3. Rollback-Frage entschieden: keine separate Eris-Uebung — kein
+       Produktiv-"davor" (Details oben); `previous`-Verify gehoert zum
+       naechsten Deploy.
+- [x] 4. Deploy-Stand und LIVE-Status in `LOKAL.md` und der bestehenden
+       ERIS-STRATA-Trilium-Note dokumentiert; acht Fork-Config-Varianten
+       liegen hostlokal.
+- [x] 5. Fork-LAN-Status in `ROADMAP.md` aktualisiert; Rollback-Frage
+       dort entschieden (Fallback-Kette statt Uebung).
 
 ## Nebenaufgaben (Gate zu oder danach)
 
-- [ ] N1. Provenienz-Wart `toolchain.nvcc`: `make_manifest.py` soll bei
-       `--cmake-def CMAKE_CUDA_COMPILER`-Override den effektiven
-       Compiler aus `engine/BUILD.json.cuda_dirs` lesen statt PATH-nvcc.
-       Klein (eine Datei), verifizieren mit erneutem Manifest-Lauf auf
-       uranus-Checkout (erwartet „13.0" statt „12.0").
-- [ ] N2. `toolchain.ninja=null` auf eris: manifest-Probe sollte
-       `.venv-offline/bin` mit einbeziehen (gleiche Stelle wie N1).
+- [x] N1. `make_manifest.py` liest bei gesetztem
+       `CMAKE_CUDA_COMPILER`-Override den effektiven Compiler aus
+       `engine/BUILD.json.cuda_dirs`; auf Uranus verifiziert.
+- [x] N2. Die Ninja-Probe beruecksichtigt `.venv-offline/bin`, sodass
+       das lokal bereitgestellte Ninja auf Eris im Manifest erkannt wird.
 - [ ] N3. Eval-Reste prüfen: auf uranus `sc117-test-q2_0.service`
        deaktiviert lassen/deinstallieren dokumentieren; Eval-Ergebnisse
        gehören in Trilium-Eval-Note (fukuro-Seite — nur verlinken).
 - [ ] N4. `strata-fork.service` auf hydra-Testdeploy aufgeräumt lassen
        (/tmp/strata-deploy aufräumen falls noch vorhanden).
 
-## Defaults
+N3 (Eval-Reste) und N4 (Hydra-Testdeploy-Aufraeumung) sind in dieser
+Hostpruefung nicht neu verifiziert; Status daher unveraendert/offen.
 
-- eris-Eval läuft noch → NUR Nebenaufgaben, kein GPU-Start
-- eris hat kein sudo → User-Unit ist die Endfassung (kein System-Unit)
-- `--no-browser`-Lektion: bei eris-Rollback-Probe dieselbe Falle in
-  alten Start-Kommandos suchen (Eval-Skripte nutzen kein --no-browser,
-  aber prüfen schadet nicht)
+## Betriebsgrenzen
+
+- Kein Unit-Neustart, GPU-Test oder Rollback im Rahmen der Doku-Pflege.
+- Die User-Unit bleibt policy-gesteuert und wird nicht fuer den Boot
+  enabled.
+- Der alte manuelle Startpfad wird nicht als Rollback-Ziel gepflegt;
+  beim zweiten eris-Deploy `rollback.sh`-Verify und Symlink-Swap
+  mitverifizieren.
 
 ## Risiken
 
@@ -73,7 +110,10 @@ früheren Sessions. Branch: `feat/p6-lan-umstellung` (fortsetzen).
 - eris `/` war zu ~89 % belegt → kein zusätzlicher Datenballast;
   Deploy-Dir ist klein (~90 MB), unkritisch
 
-## Folge-Plan
+## Folge
 
-→ Kettenende der Migrations-Arbeit. Danach regulärer Betrieb:
-P4-Sync-Reviews bei Bedarf, P5-Entscheidung bei fukuro.
+Die Eris-Umstellung ist live; die Rollback-Frage ist entschieden (keine
+Uebung — Fallback-Kette dokumentiert, `previous`-Verify beim zweiten
+Deploy). Offen bleibt die erneute Klaerung von N3/N4. P5-Robert ist laut
+Roadmap No-Go; ein moeglicher spaeterer Rust-Rewrite waere ein separates
+Projekt und kein Teil dieser Fork-Migration.
