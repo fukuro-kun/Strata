@@ -13767,15 +13767,23 @@ int main(int argc, char** argv) {
         const int64_t misses0 = drive.d.multi_misses, entries0 = drive.d.multi_entries;
         // STRATA_SPEC_WATCH=<seconds> (diagnostics, off by default): the serve watchdog for this loop.  A run whose verify
         // windows and prompt chunks stop beating for that long prints the stage it is in and the stall report, then ends.
+        // Fork fix (upstream #review): the detached thread gets a done-flag, raised by the guard on any exit from this
+        // scope — the loop's end or an early return — so a slow teardown is not reported as a stall (false abort).
+        const auto spec_done = std::make_shared<std::atomic<bool>>(false);
+        struct SpecWatchDone {
+            const std::shared_ptr<std::atomic<bool>> flag;
+            ~SpecWatchDone() { flag->store(true, std::memory_order_relaxed); }
+        } spec_done_guard{spec_done};
         if (const char* sw = std::getenv("STRATA_SPEC_WATCH"); sw != nullptr && std::atoi(sw) > 0) {
             const int limit = std::atoi(sw);
             strata::core::progress().busy.store(true);
-            std::thread([limit] {
+            std::thread([limit, spec_done] {
                 strata::core::Progress& pr = strata::core::progress();
                 uint64_t last = pr.beats.load(), ticks_at = pr.ticks.load();
                 auto since = std::chrono::steady_clock::now();
                 for (;;) {
                     std::this_thread::sleep_for(std::chrono::seconds(1));
+                    if (spec_done->load(std::memory_order_relaxed)) return;
                     const auto now = std::chrono::steady_clock::now();
                     const uint64_t b = pr.beats.load();
                     if (b != last) { last = b; ticks_at = pr.ticks.load(); since = now; continue; }
