@@ -102,7 +102,7 @@ mit Klartext ab. Doku: `docs/OFFLINE_BUILD.md` (Python-Deps-Abschnitt).
 + fork_sha + deps); Rollback-Pfad lokal auf dem Build-Host getestet
 (deploy v1 → v2 → rollback auf v1). Doku: `docs/DEPLOYMENT.md`.
 
-### P4 — Upstream-Sync-Disziplin — **ERLEDIGT 2026-10-18**
+### P4 — Upstream-Sync-Disziplin — **ERLEDIGT 2026-10-18 (Basis)**
 
 - [x] Upstream-Fetch nur bewusst angestoßen: erster Fetch 2026-10-17,
       `upstream/main` = `296b59d2…` (exakt P0-Baseline, Tag v0.1.44.1)
@@ -118,6 +118,31 @@ mit Klartext ab. Doku: `docs/OFFLINE_BUILD.md` (Python-Deps-Abschnitt).
 
 **Akzeptanz erfüllt:** Prozess-Doku + erster dokumentierter Review vorhanden;
 keine automatische Synchronisation eingerichtet.
+
+#### P4.1 — Regelmäßige Upstream-Prüfung — **laufend** (Skill angelegt 2026-10-20)
+
+- [x] `.devin/skills/strata-upstream/SKILL.md`: `/strata-upstream daily`
+      erfasst neue Änderungen und offenen Rückstand; kein automatischer Merge,
+      Push oder Rollout. Ausgewählte Testkandidaten separat per `integrate`.
+- [x] Sicherheitsausrichtung: sicherer LAN-Betrieb und kontrollierte
+      Source-/Dependency-Versorgung haben Vorrang; möglichst upstream-nah
+      und leistungsfähig bleiben. Die Mirror-Regeln gelten weiterhin.
+- [x] Drei standardisierte A/B-Tests als Übernahme-Gate definiert:
+      Prefill/TTFT, Decode und API-/Mehrturn-Betrieb; Protokoll in
+      `docs/UPSTREAM_BENCHMARKS.md`. Testkandidaten nur lokal aus Quellen.
+- [x] Eingefrorene Payloads, geprüfter Messclient, isolierte Testumgebung
+      und Testhost (uranus) festgelegt; erster Baseline-/Kandidatenvergleich
+      durchgeführt 2026-10-21: Kandidat `fec7d1ca…` (norm-fast opt-in) →
+      **NO BENEFIT** auf sm_89, aber regressionsfrei → nach Nutzerentscheid
+      übernommen (Upstream-Konvergenz). Belege: `docs/upstream-reviews/
+      REVIEW_2026-10-20_791811686870.md` + Audit-Ablage.
+- [ ] Zeitgesteuerte Ausführung separat freigeben und einrichten
+      (Host, Uhrzeit/Zeitzone, Netzfreigabe, Lauf-Sperre, Ergebniszustellung).
+      Der Skill allein ist kein Scheduler.
+- [x] Stabilen Fork-Stand gezielt nach `main` promoviert 2026-10-21:
+      Merge-Commit `0da215eb` (Fork-Baseline + geprüfter Kandidat `79181168`),
+      gepusht nach `origin/main`; Recovery-WIP (`feat/engine-auto-recovery`)
+      wurde nicht mitgenommen.
 
 ### P5 — Frontend — **ENTSCIEDEN 2026-10-17: No-Go für Robert**
 
@@ -146,11 +171,12 @@ Checkboxen obsolet — Phase damit abgeschlossen:
 
 **Akzeptanz erfüllt** durch dokumentierte Entscheidung statt Go.
 
-### LAN-Umstellung auf den Fork (Session 006) — **uranus LIVE 2026-10-17**
+### LAN-Umstellung auf den Fork (Session 006) — **uranus + eris LIVE**
 
 - [x] Deploy-Matrix über alle Hosts; produktive Strata-Endpunkte:
-      uranus :18086 (InferenzQuelle `uranus-swift15`, System-Unit
-      `strata-swift-uranus.service`) und eris :8080 (manuell, keine Unit)
+      uranus :18086 (`uranus-swift15`, System-Unit
+      `strata-swift-uranus.service`) und eris :8080 (`eris-strata.service`,
+      User-Unit, Profil-/Policy-gesteuert)
 - [x] Fork-Checkout + P1-Engine-Build + P2-Venv + P3-Deploy auf uranus
       (sm_89/CUDA-13.0) und eris (sm_86/CUDA-12.4) — Manifest verifiziert,
       `current`-Symlink gesetzt
@@ -158,15 +184,71 @@ Checkboxen obsolet — Phase damit abgeschlossen:
       `~/strata-deploy/current/run.sh`; `/slots` + echte Chat-Completion
       verifiziert, janus-Router meldet `uranus-swift15` healthy; Rollback
       auf den alten Stack real geübt und zurückgewechselt
-- [ ] **eris offen** — Deploy+Unit stehen; Startversuch scheiterte
-      fail-closed an `cudaMalloc` (llama-server `eris-chat` belegt
-      15,6/16 GiB). Abnahme sobald eris-chat per Policy unten ist;
-      Unit `strata-fork` installiert, absichtlich disabled (kein
-      Retry-Loop). Runbook `docs/DEPLOYMENT.md`
+- [x] **eris umgestellt und live abgenommen:** `eris-strata.service`
+      läuft aus `~/strata-deploy/current/run.sh` auf :8080. Deploy-Manifest
+      nennt `fork_sha=d18e7fea…`, Baseline `296b59d2…`, Host `eris`;
+      BUILD.json weist lokalen Fork-Build v0.1.44.1, sm_86, CUDA 12.4 und
+      llama.cpp-Pin `3cf03257…` aus. `/health` meldete `loaded:true`;
+      erfolgreiche 400-Token-Completion ist im Dienstjournal protokolliert
+      (41,7 t/s). Der Endpunkt wurde an InferenzQuelle angebunden.
+- [x] **eris Rollback-Frage geklärt — keine Übung:** „Zurück" setzt ein
+      Produktiv-„davor" voraus, das es auf eris nicht gab: der alte
+      manuelle Stack war nie der InferenzQuelle-Endpunkt (kein
+      Rollback-Ziel, sondern anderer Betriebsmodus). Fallback-Kette:
+      Unit stoppen → Alias `swift15-flash-next` läuft fail-closed über
+      uranus (Normalzustand vor dem Switch); `eris-chat` bleibt lokaler
+      Safe-Default. `previous`/`rollback.sh` wird erst mit dem zweiten
+      Deploy befüllt und dort verifiziert (Mechanik P3-getestet, auf
+      uranus real geübt).
 - [ ] ganymed: kein Strata-Dienst (Modellarchiv) — nichts umzustellen
 
 Details und Switch-Runbook: `docs/SOLO_SESSION_006_lan_umstellung.md`,
 `docs/DEPLOYMENT.md`.
+
+## Umgesetzte Fork-Fixes
+
+### Engine-Auto-Recovery (`engine_auto_restart`) — Branch `feat/engine-auto-recovery`, lokal implementiert 2026-10-18
+
+**Root Cause:** Stirbt der Engine-Kindprozess zwischen Requests (z. B. vom
+internen `ERR verify: timed out`-Pfad per `proc.terminate()`), bleibt der
+Python-Server äußerlich gesund: `/slots` liefert `[]`, `/v1/status` meldet
+`loaded:false`. Ein nachgelagerter fail-closed Router nimmt den Endpunkt
+dann aus der Rotation, sodass nie wieder ein Request ankommt, der
+`auto_load` auslösen könnte — Deadlock. `Restart=on-failure` greift nicht,
+weil die Unit (Python-Server) lebt.
+
+**Fix:** Opt-in-Config `"engine_auto_restart": true` (strikt bool, Default
+`false`). Ein Watchdog-Thread in `serve/server.py` (1 s Poll) startet eine
+tote native `StrataEngine` über denselben `ensure_loaded`-Pfad wie ein
+Request (`before_load`, `min_free_vram_mib`, Vision). Budget: max. 3
+Versuche in 900 s rollendem Fenster, ≥15 s Abstand; Recovery-Versuche
+laufen mit `restart(tries=1, start_retries=0)`, d. h. auch die inneren
+transienten Konstruktor-Retries sind deaktiviert — maximal ein nativer
+Spawn pro Autoversuch (auch eine Load-Hook-/VRAM-Verweigerung verbraucht
+den Versuch ohne Spawn). Manuelle `/load`-/Request-Loads behalten die
+bisherigen Engine-Retries. Bewusst entladene
+(`POST /unload`, Idle-Unload, nie geladen), lebende, busy/queued/draining
+oder startende Engines bleiben unberührt; der ausgefallene Request wird nie
+wiederholt; `/slots` bleibt bis READY `[]`. Status additiv unter
+`engine_recovery` in `/health` und `/v1/status`. Shutdown: Worker stoppt
+und joint vor `engine.close()`; ein bereits laufender Start darf zu Ende
+laufen — die Bereitschaftswarte (`ENGINE_READY_S`, Default 900 s) begrenzt
+nur das Warten auf READY, Hooks und Cleanup laufen zusätzlich.
+
+**Status:** Lokal implementiert und mit CPU-Fakeprozess getestet; **kein**
+produktiver Rollout — Configs auf den Hosts sind noch nicht aktiviert,
+kein Live-GPU-Fehlertest. Der Fix heilt den Deadlock, nicht den zugrunde
+liegenden nativen Verify-Hang. Details: `docs/DETAILS.md`
+(GPU-Sharing-Abschnitt, `"engine_auto_restart"`).
+
+### Pre-existing: flaky Sampler-Test (`test_responses.NoLeakedSampler`) — gefixt 2026-10-18
+
+Der Test zählte global alle Threads mit Namen `*(_loop)` (before/after),
+während `Telemetry.close()` nur das Stop-Event setzt und fremde, gerade
+auslaufende Sampler-Threads anderer Tests zwischen den Messungen enden —
+Assertions wie `1 != 2` ohne Produktionsbug. Der Test identifiziert jetzt
+den eigenen Sampler-Thread an seiner `svc.telemetry`-Instanz und joint ihn
+nach `server_close()`. Reine Test-Änderung, kein Lifecycle-Change.
 
 ## Zurückgestellt / Nicht-Ziele
 

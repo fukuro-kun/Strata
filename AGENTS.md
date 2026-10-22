@@ -1,5 +1,12 @@
 # AGENTS.md
 
+> **FORK-VORRANG:** Die Installer-Anleitung unten ist nur Upstream-Referenz.
+> Nicht ausführen. Maßgeblich sind der Fork-Workflow in dieser Datei,
+> `ROADMAP.md` und `docs/UPSTREAM_SYNC.md`. Regelmäßige Upstream-Prüfung:
+> `/strata-upstream daily` (repo-lokaler Skill; kein Auto-Merge/Deployment).
+> Vor Code-Übernahme: LAN-Sicherheitsprüfung und A/B-Leistungsnachweis nach
+> `docs/UPSTREAM_BENCHMARKS.md`.
+
 Strata runs the Qwen3.8-Flash-Next mixture-of-experts model (and its Coder, Swift 1.5 and Unsloth variants) on a
 normal PC: one NVIDIA or AMD graphics card plus system RAM, on Windows or Linux. It has a C++/CUDA/HIP engine
 (`src/`, `include/`), a Python server with an OpenAI- and Anthropic-compatible API and a web app (`serve/`), and a
@@ -40,7 +47,11 @@ offers the same steps as tools.
 - **Nicht** `docs/AI_SETUP.md`, `setup.py`, `setup.sh` oder `START-HERE.bat` ausführen: kein
   Installer-Lauf, kein Auto-Download, kein Server-Start aus dieser Doku heraus.
 - Kanonischer Plan: **[ROADMAP.md](ROADMAP.md)** (deutsch, Phasen P0–P5). Aktueller Stand:
-  nur Vorbereitung und Dokumentation — Implementierung braucht separate Freigabe.
+  die dort dokumentierten Freigaben gelten; die gezielte Engine-Auto-Recovery
+  (`engine_auto_restart`, Branch `feat/engine-auto-recovery`, siehe ROADMAP
+  → Umgesetzte Fork-Fixes) ist lokal implementiert und getestet; produktive
+  Aktivierung und Rollout sind **nicht** freigegeben und bedürfen separater
+  ROADMAP-Freigabe.
 - Remotes: `origin` = dieser Fork auf dem Forgejo im LAN (`europa`, kanonisch);
   `github` = fukuro-kun/Strata als reiner Mirror (serverseitiger Push-Mirror
   auf europa spiegelt jeden Push — nichts direkt auf `github` pushen);
@@ -59,5 +70,8 @@ offers the same steps as tools.
 | `AGENTS.md` | Arbeitsregeln für Agenten in diesem Repo | Workflow- oder Regeländerungen |
 | `LOKAL.md` | Private Umgebungsdetails (nicht versioniert) | Änderungen an Umgebung, Remotes oder Stand |
 | `docs/INVENTAR.md` | P0-Baseline-Inventar: Quellen, Deps, Lizenzen, Toolchain, Provenienz, Offline-Lücken | Bei Baseline-Wechsel oder neuen Artefakten |
+| `docs/UPSTREAM_SYNC.md` | Upstream-Review, täglicher Radar und Promotions-/Push-Gates | Bei Änderungen am Sync-Ablauf oder an Freigaben |
+| `docs/UPSTREAM_BENCHMARKS.md` | Reproduzierbares A/B-Protokoll vor Code-Übernahme | Bei Änderungen an Messplan, Tests oder Entscheidungskriterien |
+| `.devin/skills/strata-upstream/SKILL.md` | Lokaler Agentenablauf für Tagesprüfung und ausgewählte Testkandidaten | Bei Änderungen am Upstream-/Sicherheits-/Benchmark-Ablauf |
 | `docs/SOLO_SESSION_OVERVIEW.md` | Verkettung der Session-Pläne P0–P5 + LAN-Umstellung | Planänderungen, Session-Abgrenzung |
 | `docs/SOLO_SESSION_00*.md` | Je Phase ein ausführbarer Session-Plan (Entscheidungen, Schritte, Verifikation) | Vor/nach jeder Session-Phase |
