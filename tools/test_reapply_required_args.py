@@ -56,6 +56,16 @@ class TestRequired(unittest.TestCase):
         new, ch = run(["--vision", "--kv", "int8", "--vision"], {"--vision": None})
         self.assertEqual(new.count("--vision"), 1)
 
+    def test_missing_first_value_does_not_shift_duplicate_removal(self):
+        args = ["--max-context", "--kv", "int8", "--max-context", "65536", "--vision"]
+        new, _ = run(args, {"--max-context": "262144"})
+        self.assertEqual(new, ["--max-context", "262144", "--kv", "int8", "--vision"])
+
+    def test_bare_duplicate_preserves_the_following_flag(self):
+        args = ["--max-context", "65536", "--kv", "int8", "--max-context", "--vision"]
+        new, _ = run(args, {"--max-context": "262144"})
+        self.assertEqual(new, ["--max-context", "262144", "--kv", "int8", "--vision"])
+
     def test_numeric_want_coerced(self):
         new, _ = run([], {"--max-context": 262144})
         self.assertEqual(new, ["--max-context", "262144"])

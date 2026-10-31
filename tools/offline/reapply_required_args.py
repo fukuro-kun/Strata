@@ -119,8 +119,12 @@ def apply_required(args: list, required: dict, forbidden: list) -> tuple:
                 old = args[i + 1]
                 args[i + 1] = want
                 changes.append(f"{key}: {old} -> {want}")
-            for j in reversed(hits[1:]):              # last-wins: duplicates would
-                del args[j:j + 2]                      # silently override the pin
+            # Filling a missing first value shifts later duplicates. Re-scan
+            # before removal, and never eat the next flag of a bare duplicate.
+            duplicates = [j for j, token in enumerate(args) if token == key][1:]
+            for j in reversed(duplicates):
+                end = j + 2 if j + 1 < len(args) and not args[j + 1].startswith("--") else j + 1
+                del args[j:end]
             if len(hits) > 1:
                 changes.append(f"{key}: {len(hits) - 1} duplicate(s) removed")
         else:
