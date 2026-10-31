@@ -211,17 +211,20 @@ und joint vor `engine.close()`; ein bereits laufender Start darf zu Ende
 laufen — die Bereitschaftswarte (`ENGINE_READY_S`, Default 900 s) begrenzt
 nur das Warten auf READY, Hooks und Cleanup laufen zusätzlich.
 
-**Status:** Lokal implementiert und mit CPU-Fakeprozess getestet (37 Tests
-in `serve/test_engine_recovery.py`). Der Code ist auf den main-Stand
-portiert (Branch `feat/eris-engine-recovery`); die ursprüngliche
-Implementierung lag auf `feat/engine-auto-recovery`.
+**Status:** Auf den main-Stand portiert und mit CPU-Fakeprozess- und
+Server-Regressionstests geprueft; der abschliessende Server-Testlauf
+umfasste 404 Tests (ein Skip wegen optional fehlendem `jsonschema`).
 **Freigabe 2026-10-31 (User):** gezielter produktiver Rollout **nur auf
-eris** — einschließlich Dienst-Neustart und gezieltem Beenden
+dem lokal dokumentierten Produktionshost** — einschließlich Dienst-Neustart und gezieltem Beenden
 **ausschließlich** des laufenden Engine-Kindprozesses bei freiem Slot
-als Live-Nachweis. uranus ist weiterhin **nicht** freigegeben — Configs
-und Ressourcen-Tuning dort unverändert. Rollout und Live-Nachweis stehen
-noch aus; der Stand ist **nicht deployt**. Der Fix heilt den Deadlock,
-nicht den zugrunde liegenden nativen Verify-Hang. Details:
+als Live-Nachweis. Andere Hosts sind weiterhin **nicht** freigegeben —
+Configs und Ressourcen-Tuning dort unverändert. **Umgesetzt 2026-10-31: auf dem
+freigegebenen Produktionshost deployt und live abgenommen** — kontrollierter
+Kindtod bei freiem Slot, autonomer Watchdog-Neustart beginnt nach 0,94 s, Engine
+ready nach 17,7 s, wartender Request wurde mit 200 bedient (Details nur in
+`LOKAL.md`). Der Fix heilt den Recovery-Deadlock nach Kindtod — die
+ursprüngliche Stall-Ursache (Ressourcen-/I/O-Druck, plausibel) bleibt offen.
+Details:
 `docs/DETAILS.md` (GPU-Sharing-Abschnitt, `"engine_auto_restart"`).
 
 ### Pre-existing: flaky Sampler-Test (`test_responses.NoLeakedSampler`) — gefixt 2026-10-18

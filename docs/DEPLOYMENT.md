@@ -122,11 +122,13 @@ real üben (deploy → rollback → redeploy).
 ## Engine-Auto-Recovery — Freigabe-Scope (Stand 2026-10-31)
 
 Die Opt-in-Config `"engine_auto_restart": true` (Default `false`, siehe
-`docs/DETAILS.md`) ist per User-Freigabe **nur für eris** zum gezielten
+`docs/DETAILS.md`) ist per User-Freigabe **nur fuer den in `LOKAL.md`
+benannten Produktionshost** zum gezielten
 Rollout zugelassen — einschließlich Neustart der dortigen User-Unit und
 einem kontrollierten Test, der **ausschließlich** den laufenden
 Engine-Kindprozess bei freiem Slot gezielt beendet (kein Unit-Kill, kein
-fremder Prozess). uranus ist **nicht** freigegeben: dortige `*.fork.json`-Configs
-und das Ressourcen-Tuning bleiben unverändert. Dieser Abschnitt
-dokumentiert die Freigabe — Rollout und Live-Nachweis sind noch nicht
-erfolgt.
+fremder Prozess). Andere Hosts sind **nicht** freigegeben: deren `*.fork.json`-Configs
+und Ressourcen-Tuning bleiben unverändert. **Stand 2026-10-31: auf dem
+freigegebenen Produktionshost deployt und live abgenommen** — kontrollierter
+Kindtod → autonomer Watchdog-Neustart beginnt nach 0,94 s, Engine ready 17,7 s,
+wartender Request mit 200 bedient; Deploy-IDs und Pfade nur in `LOKAL.md`.

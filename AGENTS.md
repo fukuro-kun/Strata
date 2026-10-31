@@ -42,9 +42,12 @@ offers the same steps as tools.
 - Kanonischer Plan: **[ROADMAP.md](ROADMAP.md)** (deutsch, Phasen P0–P5). Aktueller Stand:
   die dort dokumentierten Freigaben gelten; die gezielte Engine-Auto-Recovery
   (`engine_auto_restart`, siehe ROADMAP → Umgesetzte Fork-Fixes) ist seit
-  2026-10-31 **nur für eris freigegeben** (Dienst-Neustart plus gezieltes
-  Beenden des laufenden Engine-Kindprozesses bei freiem Slot) — Rollout und Live-Nachweis
-  stehen noch aus; uranus ist weiterhin **nicht** freigegeben.
+  2026-10-31 **nur fuer den lokal dokumentierten Produktionshost freigegeben**
+  (Dienst-Neustart plus gezieltes
+  Beenden des laufenden Engine-Kindprozesses bei freiem Slot) und seit dem
+  selben Tag **deployt sowie live abgenommen** — autonomer Kind-Restart und
+  bedienter wartender Request nachgewiesen. Andere Hosts sind weiterhin
+  **nicht** freigegeben; Zielzuordnung und Betriebsdetails siehe `LOKAL.md`.
 - Remotes: `origin` = dieser Fork auf dem Forgejo im LAN (`europa`, kanonisch);
   `github` = fukuro-kun/Strata als reiner Mirror (serverseitiger Push-Mirror
   auf europa spiegelt jeden Push — nichts direkt auf `github` pushen);
