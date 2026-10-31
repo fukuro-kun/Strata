@@ -40,7 +40,11 @@ offers the same steps as tools.
 - **Nicht** `docs/AI_SETUP.md`, `setup.py`, `setup.sh` oder `START-HERE.bat` ausführen: kein
   Installer-Lauf, kein Auto-Download, kein Server-Start aus dieser Doku heraus.
 - Kanonischer Plan: **[ROADMAP.md](ROADMAP.md)** (deutsch, Phasen P0–P5). Aktueller Stand:
-  nur Vorbereitung und Dokumentation — Implementierung braucht separate Freigabe.
+  die dort dokumentierten Freigaben gelten; die gezielte Engine-Auto-Recovery
+  (`engine_auto_restart`, siehe ROADMAP → Umgesetzte Fork-Fixes) ist seit
+  2026-10-31 **nur für eris freigegeben** (Dienst-Neustart plus gezieltes
+  Beenden des laufenden Engine-Kindprozesses bei freiem Slot) — Rollout und Live-Nachweis
+  stehen noch aus; uranus ist weiterhin **nicht** freigegeben.
 - Remotes: `origin` = dieser Fork auf dem Forgejo im LAN (`europa`, kanonisch);
   `github` = fukuro-kun/Strata als reiner Mirror (serverseitiger Push-Mirror
   auf europa spiegelt jeden Push — nichts direkt auf `github` pushen);

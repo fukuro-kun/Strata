@@ -211,11 +211,18 @@ und joint vor `engine.close()`; ein bereits laufender Start darf zu Ende
 laufen — die Bereitschaftswarte (`ENGINE_READY_S`, Default 900 s) begrenzt
 nur das Warten auf READY, Hooks und Cleanup laufen zusätzlich.
 
-**Status:** Lokal implementiert und mit CPU-Fakeprozess getestet; **kein**
-produktiver Rollout — Configs auf den Hosts sind noch nicht aktiviert,
-kein Live-GPU-Fehlertest. Der Fix heilt den Deadlock, nicht den zugrunde
-liegenden nativen Verify-Hang. Details: `docs/DETAILS.md`
-(GPU-Sharing-Abschnitt, `"engine_auto_restart"`).
+**Status:** Lokal implementiert und mit CPU-Fakeprozess getestet (37 Tests
+in `serve/test_engine_recovery.py`). Der Code ist auf den main-Stand
+portiert (Branch `feat/eris-engine-recovery`); die ursprüngliche
+Implementierung lag auf `feat/engine-auto-recovery`.
+**Freigabe 2026-10-31 (User):** gezielter produktiver Rollout **nur auf
+eris** — einschließlich Dienst-Neustart und gezieltem Beenden
+**ausschließlich** des laufenden Engine-Kindprozesses bei freiem Slot
+als Live-Nachweis. uranus ist weiterhin **nicht** freigegeben — Configs
+und Ressourcen-Tuning dort unverändert. Rollout und Live-Nachweis stehen
+noch aus; der Stand ist **nicht deployt**. Der Fix heilt den Deadlock,
+nicht den zugrunde liegenden nativen Verify-Hang. Details:
+`docs/DETAILS.md` (GPU-Sharing-Abschnitt, `"engine_auto_restart"`).
 
 ### Pre-existing: flaky Sampler-Test (`test_responses.NoLeakedSampler`) — gefixt 2026-10-18
 

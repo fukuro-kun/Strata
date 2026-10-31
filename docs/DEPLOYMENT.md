@@ -118,3 +118,15 @@ curl -s 127.0.0.1:8080/slots | head
 
 Vor dem ersten produktiven Start eines Hosts einmalig das Rollback
 real üben (deploy → rollback → redeploy).
+
+## Engine-Auto-Recovery — Freigabe-Scope (Stand 2026-10-31)
+
+Die Opt-in-Config `"engine_auto_restart": true` (Default `false`, siehe
+`docs/DETAILS.md`) ist per User-Freigabe **nur für eris** zum gezielten
+Rollout zugelassen — einschließlich Neustart der dortigen User-Unit und
+einem kontrollierten Test, der **ausschließlich** den laufenden
+Engine-Kindprozess bei freiem Slot gezielt beendet (kein Unit-Kill, kein
+fremder Prozess). uranus ist **nicht** freigegeben: dortige `*.fork.json`-Configs
+und das Ressourcen-Tuning bleiben unverändert. Dieser Abschnitt
+dokumentiert die Freigabe — Rollout und Live-Nachweis sind noch nicht
+erfolgt.
