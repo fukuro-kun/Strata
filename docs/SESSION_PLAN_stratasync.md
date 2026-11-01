@@ -6,8 +6,9 @@ Den freigegebenen vollstaendigen Git-Merge des gepinnten Upstream-Stands
 `c62d5e3a15b40ea51c96aae9e8d36928965f53ab` vorbereiten, pruefen und nur bei
 bestandenen Gates promovieren. Kein Quellen-Snapshot als Ersatz.
 
-**Status: OFFEN.** Der lokale Merge ist noch nicht committed oder gepusht.
-Produktion bleibt bis zur Abnahme unveraendert. Kanonische Gates:
+**Status: Merge committed (`aa3e61fa`), A/B-Vorbereitung laeuft.** Kein
+Push nach origin vor bestandenen Gates; Produktion bleibt bis zur
+Abnahme unveraendert. Kanonische Gates:
 `UPSTREAM_SYNC.md`, `UPSTREAM_BENCHMARKS.md`, `../ROADMAP.md`.
 
 Die frueheren `SOLO_SESSION_001` bis `008` dokumentieren vorherige Phasen.
@@ -45,10 +46,10 @@ keine Freigabe fuer diesen Merge.
 | Direkte Metal-/SYCL-Buildpfade und Backend-Exitcodes absichern | Implementiert, Gesamt-Gegenpruefung offen | Dreizehn isolierte AST-/Mock-Methoden; Original: zwoelf Gate-Fails und vier unbehandelte Verweigerungen; keine reale Kompilation |
 | Eigenstaendige MTP-Beschaffung absichern | Implementiert, Gesamt-Gegenpruefung offen | Dreizehn isolierte Gate-/Mock-Methoden und drei bestehende Range-Methoden; Offline-verify bleibt erlaubt; keine Downloads |
 | Uebrige bestaetigte Fehler beheben oder explizites Technical Debt abstimmen | Offen | Reproduzierbarer Beleg, minimaler Fix, passende Regressionstests |
-| Unabhaengige Gegenpruefung | Offen | Getrennter frischer Review-Kontext; keine Selbstfreigabe |
-| Messclient bereitstellen | Erledigt | Acht isolierte SSE-/Timeout-/Fehlerfalltests |
-| Beide Vergleichsarme offline aus lokalen Quellen bauen | Offen | Identische gepinnte Toolchain/Inputs, Build- und Artefakt-Hashes |
-| Host-spezifischen Messplan und Payloads einfrieren | Offen, Lead-Aufgabe | plan.json, exakte Requests, Token-/Modell-/Template-Hashes |
+| Unabhaengige Gegenpruefung | Erledigt, 1 P1 behoben | review-swe frischer Kontext: bereit fuer isoliertes Host-A/B; P1 LOKAL.md vs. Dirty-Tree-Gate per .gitignore geschlossen |
+| Messclient bereitstellen | Erledigt | `ab_client.py` gefroren (sha 063f4ba0), SSE+TTFT+Engine-Timings, Abbruch bei Fremd-GPU/RAM-Not |
+| Beide Vergleichsarme offline aus lokalen Quellen bauen | In Arbeit | Kandidat aa3e61fa pro Host nativ (eris arch86 gcc-13 wegen libstdc++/nvcc-12.4, uranus arch89); Baseline = gepruefte Deploy-Binaries mit BUILD.json |
+| Host-spezifischen Messplan und Payloads einfrieren | In Arbeit | Payloads v3 (disjunkte Prefill-Slices, 4300/15176 Tokens), plan.json nach Artefakt-Hashes |
 | Freigegebene A/B-Messungen ausfuehren | Offen, delegierte Ausfuehrung | Probelauf, fuenf gepaarte Runden AB/BA/AB/BA/AB, Rohdaten |
 | Messergebnisse und Nutzen selbst beurteilen | Offen, Lead-Aufgabe | Vorgeschriebene Mediane/Min/Max/Rauschen; kein Gesamtscore |
 | Finalen REVIEW-Bericht und Provenienz abschliessen | Offen | Exakte SHAs, Findings, Logs, Grenzen, Nutzen, Gegenpruefung |
