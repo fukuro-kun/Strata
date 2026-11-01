@@ -1,3 +1,4 @@
+42d35340cc5b9ba78e818ddbff0c5b1c2b779de448a340fd1b989f5fa8670e1b  certifi-2026.10.19-py3-none-any.whl
 62f22742b58a1a33014a2b6b706588a8d7e2a88ae7bd1a6ebe8c992928483775  certifi-2026.7.22-py3-none-any.whl
 b9af956078716df40d985fb0dfeb2c2120c5ca92ba4ff4b388acfd01cdc14d08  charset_normalizer-3.5.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
 15f024313246a4ed976c60f440bb8d257815513a681d212ff74fd46f7d715a90  charset_normalizer-3.5.1-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
@@ -22,4 +23,5 @@ c458b6d084f9b935061bc36216e8a69a7e293a2f1e68bf956dcd9e6cbcd143f5  pyyaml-6.0.3-c
 05fb018cfe7144585fc83882405906ff84994a2d154afc2509ecc7752c51f864  regex-2026.9.10-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
 2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0  requests-2.34.2-py3-none-any.whl
 c293e525e6fef9c20e8728fd4612df02a0aa31bb5fe91ecd93e123b1b7bffa73  tqdm-4.70.1-py3-none-any.whl
+9aaaedaefaf06d8b206278cf8b5012bc897f485a874503501e12d776df78951c  truststore-0.10.5-py3-none-any.whl
 0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3  urllib3-2.8.0-py3-none-any.whl

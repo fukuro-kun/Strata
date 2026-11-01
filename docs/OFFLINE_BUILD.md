@@ -5,6 +5,52 @@ Kanonischer Build-Einstieg dieses Forks. **Niemals** `setup.py`, `setup.sh`,
 Pfade laufen komplett offline; Beschaffung ist ein separater, dokumentierter
 Schritt.
 
+**Acquisition-Gate (Fork):** Upstreams Terminal-/App-Primitiven (Download,
+Update, Launch-Acquisition, pip, Compile) laufen allesamt über
+`strata_control/acquisition.require()`. Der Fork verweigert jede davon per
+Default (`ForkAcquisitionRefused`, Exit 5) — Ausnahme nur für bewusst
+reviewte Beschaffung mit `STRATA_FORK_ALLOW_ACQUIRE=1` (exakter String),
+niemals produktiv. `STRATA_NO_ACQUIRE` und der `forbidden()`-Kontext
+gewinnen immer. `run_server.sh` exportiert `STRATA_NO_ACQUIRE=1` und
+`STRATA_NO_HANDOVER=1`.
+
+Das Gate gilt auch für eine **lokale Paketinstallation**
+(`updater.install_engine_file`, das explizite CLI-Paket): ein signiertes
+Upstream-Engine-Paket auf Disk ist trotzdem Beschaffung — die Signatur
+prüft Integrität, keine Freigabe. Die Fork-Build-Skripte
+(`tools/offline/…`) bleiben davon separat: sie sind Shell-Verträge
+außerhalb der Python-Umgebung und laufen ohne das Env-Gate.
+Die Offline-Skripte `fetch_llamacpp.sh` / `fetch_wheels.sh` bleiben der
+dokumentierte Beschaffungspfad; sie nutzen keine Terminal-Download-Primitiven.
+Der DSV41-Pfad folgt demselben Gate: lokale Paketinstallation,
+Remote-Download/Upgrade und die Remote-Erreichbarkeitsprobe laufen ueber
+`acquisition.require()`; die lokale Read-Only-Probe (existierende Datei/Ordner)
+bleibt davon frei. Der MCP-Modellinstaller und sein Hintergrundjob
+brauchen vor State-/Spec-/Venv-Zugriff dasselbe Gate; `STRATA_NO_ACQUIRE`
+wird fuer Control-Kinder nicht mehr entfernt — Allow ueberstimmt den
+Stopp weiterhin nicht. Auch die CUDA-12-Treiberfloor-Abfrage
+(`driver_floor.from_feed`) liest den signierten Feed nur noch nach dem
+Gate; installierte lokale Metadaten und der konstante Fallback brauchen
+kein Allow.
+
+Die Windows-HIP-Geraeteprobe `hip_devices` repariert den Engine-Ordner
+nicht mehr nebenbei. Die explizite Installationspruefung `hip_card`
+kopiert die benoetigten lokalen Runtime-DLLs weiterhin vor der Probe.
+Das ist kein Beleg, dass die gesamte Terminal-Planung schreibfrei ist;
+andere Settings-/Datei-Nebenwirkungen werden getrennt geprueft.
+
+Auch die direkten Metal-Buildhelfer pruefen vor Build-Vorbereitungen
+das Beschaffungs-Gate. Beim SYCL-Bildleser liegt es bereits vor dem
+Laden der oneAPI-Umgebung. Gueltige vorhandene Backend-Artefakte koennen
+ohne Neubau weiterverwendet werden. Die Backend-Einstiege melden eine
+Beschaffungsverweigerung mit Exit 5 statt einem Traceback.
+
+Der eigenstaendige Helfer `tools/mtp_fetch.py` prueft Metadaten- und
+Tensorbeschaffung ebenfalls am Fork-Gate, auch bei direktem CLI-Aufruf.
+Sein `verify` bleibt offline ohne Allow nutzbar; er kann dabei den
+lokalen Verifikationscache schreiben. Der Root-Setup-Aufruf war schon
+vor dieser Absicherung durch dessen `run`-Gate geschuetzt.
+
 ## Prinzip
 
 1. **Beschaffung** (einmalig, bewusst, dokumentiert): `tools/offline/fetch_llamacpp.sh`

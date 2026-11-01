@@ -55,8 +55,8 @@ else
   info "target interpreter: $(python3 -c 'import sys;print(".".join(map(str,sys.version_info[:2])))')"
 fi
 
-info "downloading requirements.txt wheels -> $WH"
-"${PIP[@]}" "${DL[@]}" -r "$REPO_ROOT/requirements.txt"
+info "downloading requirements.txt + requirements-build.txt wheels -> $WH"
+"${PIP[@]}" "${DL[@]}" -r "$REPO_ROOT/requirements.txt" -r "$REPO_ROOT/requirements-build.txt"
 
 info "downloading CUDA library wheels (13.x + 12.x sets)"
 "${PIP[@]}" "${DL[@]}" "${CUDA_WHEELS[@]}" "${CUDA12_WHEELS[@]}"

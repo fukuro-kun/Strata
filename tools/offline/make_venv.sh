@@ -58,9 +58,9 @@ info "creating $VENV with $("$PY" --version 2>&1)"
 VPY="$VENV/bin/python"
 [ -x "$VPY" ] || die "venv created but $VPY missing"
 
-info "installing requirements.txt (--no-index, wheelhouse only)"
+info "installing requirements.txt + requirements-build.txt (--no-index, wheelhouse only)"
 "$VPY" -m pip install --no-index --find-links "$WH" --disable-pip-version-check \
-  -r "$REPO_ROOT/requirements.txt"
+  -r "$REPO_ROOT/requirements.txt" -r "$REPO_ROOT/requirements-build.txt"
 
 # CUDA runtime wheels (parsed from setup.py — same pins setup installs). An
 # empty parse must fail closed: silently skipping means a venv WITHOUT the

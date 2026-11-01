@@ -1105,6 +1105,207 @@ class RecoverEndpointOverHttp(unittest.TestCase):
         # beliebig viele Stupser wecken nur: der Worker startet genau einmal
         self.assertEqual(len(self.popens), initial + 1)
 
+    def test_poke_in_restart_init_window_is_202_not_unloaded_409(self):
+        """Regression: StrataEngine.__init__ sets unloaded=True again before clearing it at READY
+        (~lines 1037->1057).  A poke landing in that constructor window used to get 409
+        "unloaded on purpose" although a watchdog restart was in flight (starting=True)."""
+        entered = threading.Event()
+        release = threading.Event()
+        real_read = Path.read_text
+
+        def hold_build_json(self, *a, **kw):
+            if self.name == "BUILD.json":
+                entered.set()                                   # blocked between unloaded=True and =False
+                release.wait(timeout=30)
+            return real_read(self, *a, **kw)
+
+        with mock.patch.object(Path, "read_text", hold_build_json):
+            self.kill_engine()
+            deadline = time.monotonic() + 20
+            while not getattr(self.engine, "starting", False) and time.monotonic() < deadline:
+                time.sleep(0.02)
+            self.assertTrue(getattr(self.engine, "starting", False),
+                            "the watchdog never started the restart")
+            self.assertTrue(entered.wait(timeout=20), "the restart never reached the BUILD.json read")
+            self.assertTrue(self.engine.unloaded)               # inside the window the bug lived in
+            code, body, _ = self.post_recover()
+            self.assertEqual(code, 202, body)
+            release.set()
+        self.assertTrue(self.wait_loaded().get("loaded"))
+
+
+class DrainAndShutdown(unittest.TestCase):
+    """Shutdown-Lebenszyklus: kein Spawn waehrend Drain, 409-Poke im Drain, Watchdog-Stop vor engine.close."""
+
+    def svc(self, **kw):
+        s = make_service(**kw)
+        s.now = [1000.0]
+        s._recovery_clock = lambda: s.now[0]
+        self.addCleanup(s.stop_engine_recovery)
+        return s
+
+    def test_draining_dead_engine_is_not_restarted(self):
+        s = self.svc()
+        s.engine.alive_v = False
+        s.begin_drain()
+        state = s.recovery_tick()
+        self.assertEqual(state, "idle")
+        self.assertEqual(len(s._recovery_attempts), 0)          # kein gebuchter Versuch
+        self.assertFalse(s.engine.alive_v)                      # kein Spawn
+
+    def test_recover_poke_during_drain_refuses_409(self):
+        s = self.svc()
+        s.begin_drain()                            # erst drain, dann Tod: kein Restart-Fenster dazwischen
+        s.engine.alive_v = False
+        s.start_engine_recovery()
+        code, body, retry = s.request_engine_recovery()
+        self.assertEqual(code, 409)
+        self.assertIsNone(retry)
+        self.assertIn("draining", body["error"]["message"])
+        self.assertFalse(s._recovery_wake.is_set())             # kein Wake, kein Start
+        self.assertFalse(s.engine.alive_v)
+        self.assertEqual(len(s._recovery_attempts), 0)
+
+    def test_shutdown_closers_stop_watchdog_before_engine_close(self):
+        s = self.svc()
+        engine = s.engine
+        engine.closed = False
+        orig_close = engine.close
+
+        def marked_close():
+            engine.closed = s._recovery_stop.is_set()           # Stop muss VOR close signalisiert sein
+            orig_close()
+        engine.close = marked_close
+        order = shutdown_closers(None, s, engine, None, None)
+        self.assertIn(s.stop_engine_recovery, order)
+        self.assertLess(order.index(s.stop_engine_recovery), order.index(engine.close))
+        s._recovery_stop.set()
+        s._recovery_wake.set()
+        for close in order:
+            close()
+        self.assertTrue(engine.closed)
+
+    def test_ordinary_shutdown_drain_keeps_pending_and_stops_recovery(self):
+        s = self.svc()
+        s.start_engine_recovery()
+        s.engine.alive_v = False
+        s.begin_drain()
+        # wie main(): Signal zuerst, dann Closer-Reihenfolge
+        s._recovery_stop.set()
+        s._recovery_wake.set()
+        state = s.recovery_tick()
+        self.assertEqual(state, "stopped")
+        self.assertEqual(len(s._recovery_attempts), 0)
+        self.assertFalse(s.engine.alive_v)
+
+
+class MainLifecycle(unittest.TestCase):
+    """Echte main()-Pfade (Mock-Engine, gebundenes httpd): der Watchdog wird beim Ready-Publish-
+    Fehler und beim ordentlichen Shutdown tatsaechlich gestoppt und gejoint, bevor die Engine
+    geschlossen wird - inklusive Fruehsignal vor dem potenziell blockierenden httpd.shutdown."""
+
+    def _capture(self, captured, order):
+        real_serve = server.serve
+
+        def spy(svc, *a, **kw):
+            httpd = real_serve(svc, *a, **kw)
+            captured["svc"], captured["httpd"], captured["engine"] = svc, httpd, svc.engine
+            orig_stop = svc.stop_engine_recovery
+
+            def rec_stop():
+                order.append("watchdog_stop")
+                orig_stop()
+            svc.stop_engine_recovery = rec_stop
+            orig_close = svc.engine.close
+
+            def rec_close():
+                order.append(("engine_close", svc._recovery_stop.is_set(),
+                              svc._recovery_thread is None or not svc._recovery_thread.is_alive()))
+                orig_close()
+            svc.engine.close = rec_close
+            orig_drain = svc.begin_drain
+
+            def rec_drain():
+                order.append(("begin_drain", svc._recovery_stop.is_set()))
+                return orig_drain()
+            svc.begin_drain = rec_drain
+            orig_cancel = svc.cancel_owned_requests
+
+            def rec_cancel():
+                order.append("cancelled")
+                return orig_cancel()
+            svc.cancel_owned_requests = rec_cancel
+            orig_sd = httpd.shutdown
+
+            def rec_sd():
+                order.append(("httpd_shutdown", svc._recovery_stop.is_set()))
+                orig_sd()
+            httpd.shutdown = rec_sd
+            return httpd
+        return spy
+
+    def _cfg(self, tmp):
+        cfg = Path(tmp.name) / "strata-test.json"
+        cfg.write_text(json.dumps({"engine_auto_restart": True}), encoding="utf-8")
+        return cfg
+
+    def test_ready_publish_failure_stops_and_joins_watchdog_before_engine_close(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        order, captured = [], {}
+        with mock.patch.object(Service, "_recovery_eligible", lambda self: True), \
+                mock.patch.object(server, "MockEngine", lambda *a, **kw: StubEngine()), \
+                mock.patch.object(server, "serve", self._capture(captured, order)), \
+                mock.patch.object(server.ready_file, "publish", side_effect=OSError("disk full")):
+            rc = server.main(["--engine", "mock", "--config", str(self._cfg(tmp)),
+                              "--port", "0", "--ready-file", str(Path(tmp.name) / "ready.json")])
+        self.assertEqual(rc, 6)
+        svc = captured["svc"]
+        self.assertTrue(svc._recovery_stop.is_set())
+        self.assertIsNone(svc._recovery_thread)                  # gejoint, nicht nur signalisiert
+        kinds = [e[0] if isinstance(e, tuple) else e for e in order]
+        self.assertLess(kinds.index("watchdog_stop"), kinds.index("engine_close"))
+        self.assertTrue(next(e for e in order if e[0] == "httpd_shutdown")[1],
+                        "der Stop wurde nicht VOR httpd.shutdown signalisiert")
+        close = next(e for e in order if e[0] == "engine_close")
+        self.assertTrue(close[1] and close[2], "die Engine wurde vor dem Watchdog-Join geschlossen")
+
+    def test_graceful_shutdown_signals_stop_before_drain_and_close(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        order, captured, events = [], {}, []
+        real_sleep = time.sleep
+
+        def interrupt_in_main(*a, **kw):                          # nur der Hauptthread darf ausloesen
+            if threading.current_thread() is threading.main_thread():
+                raise KeyboardInterrupt
+            return real_sleep(*a, **kw)
+
+        def on_event(kind, payload):
+            events.append(kind)
+            if kind == "ready":                                   # eine offene Anfrage im Drain-Fenster
+                svc = captured["svc"]
+                self.assertTrue(svc.reserve_inference())
+                threading.Timer(0.2, svc.release_inference).start()
+
+        with mock.patch.object(Service, "_recovery_eligible", lambda self: True), \
+                mock.patch.object(server, "MockEngine", lambda *a, **kw: StubEngine()), \
+                mock.patch.object(server, "serve", self._capture(captured, order)), \
+                mock.patch.object(server.time, "sleep", interrupt_in_main):
+            rc = server.main(["--engine", "mock", "--config", str(self._cfg(tmp)),
+                              "--port", "0", "--shutdown-timeout", "5"],
+                             lifecycle_event=on_event, interrupt_exit_code=42)
+        self.assertEqual(rc, 42)
+        svc = captured["svc"]
+        self.assertTrue(svc._recovery_stop.is_set())
+        self.assertIn("draining", events)
+        self.assertNotIn("cancelled", order, "die rechtzeitig freigegebene Anfrage wurde abgebrochen")
+        drain = next(e for e in order if e[0] == "begin_drain")
+        self.assertTrue(drain[1], "der Watchdog-Stop kam nicht VOR begin_drain")
+        kinds = [e[0] if isinstance(e, tuple) else e for e in order]
+        self.assertLess(kinds.index("watchdog_stop"), kinds.index("engine_close"))
+        self.assertTrue(svc._recovery_thread is None or not svc._recovery_thread.is_alive())
+
 
 if __name__ == "__main__":
     unittest.main()

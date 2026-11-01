@@ -58,6 +58,19 @@ Strikt sequenziell (Abhängigkeitskette), eine Session pro Welle:
 | 6 | `SOLO_SESSION_006_lan_umstellung.md` | LAN-Deployments umstellen | 4 |
 | 7 | `SOLO_SESSION_007_p5_vorbereitung.md` | P5 Evaluierung Robert-Frontend | 4 |
 
+## Aktiver Folgeplan (Strata-Sync)
+
+- **[SESSION_PLAN_stratasync.md](SESSION_PLAN_stratasync.md)** (wird
+  separat gepflegt): Folgeplan fuer die volle Git-Merge-Integration
+  `c62d5e3a` auf `feat/sync-2026-10-31-full-c62d5e3a`. Er gilt fuer den aktuellen
+  Audit-/Review-/Promotions-Fluss nach den Gates in
+  `docs/UPSTREAM_SYNC.md` — die aelteren Plaene 001–007/008 unten sind
+  die **historischen P0–P5-Session-Plaene** und gelten nicht als
+  Mass-Diff-Kurzschluss fuer den aktuellen Merge.
+- Neuere Beschaffungskorrekturen und isolierte Gate-Tests sind im
+  Folgeplan und der ROADMAP erfasst. Der Sync bleibt vor Gegenpruefung,
+  vollstaendigem Offline-Build und A/B-Abnahme lokal quarantiniert.
+
 ## Abhängigkeits-Graph
 
 ```

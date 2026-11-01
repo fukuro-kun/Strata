@@ -17,6 +17,9 @@ Upstream-Checkout (`~/git/strata`) und schon gar nicht über
 - Dienst-Start immer über `<deploy-root>/current/run.sh` bzw.
   `tools/offline/run_server.sh` — nie direkt `.venv/bin/python
   serve/server.py` aus einem unbearbeiteten Checkout.
+  `run_server.sh` exportiert `STRATA_NO_ACQUIRE=1` + `STRATA_NO_HANDOVER=1`:
+  der Dienst kann unter keinem vererbten Env irgendwelche Download-/Update-
+  Primitive auslösen (Acquisition-Gate, `docs/OFFLINE_BUILD.md`).
 - Configs mit Host-Pfad auf den Fork zeigen als `*.fork.json` unter
   `~/strata-fork-configs/` (host-lokal, nicht committed — enthalten
   private Pfade).
