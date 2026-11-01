@@ -6,10 +6,16 @@ Den freigegebenen vollstaendigen Git-Merge des gepinnten Upstream-Stands
 `c62d5e3a15b40ea51c96aae9e8d36928965f53ab` vorbereiten, pruefen und nur bei
 bestandenen Gates promovieren. Kein Quellen-Snapshot als Ersatz.
 
-**Status: Merge committed (`aa3e61fa`), A/B-Vorbereitung laeuft.** Kein
-Push nach origin vor bestandenen Gates; Produktion bleibt bis zur
-Abnahme unveraendert. Kanonische Gates:
-`UPSTREAM_SYNC.md`, `UPSTREAM_BENCHMARKS.md`, `../ROADMAP.md`.
+**Status: ROLLOUT ABGESCHLOSSEN.** Merge `aa3e61fa` + `fa225161` auf
+`origin/feat/sync-2026-10-31-full-c62d5e3a` gepusht (nach Gegenpruefung:
+kein P0, einziger P1 per .gitignore geschlossen). A/B auf beiden Hosts
+gemessen, beide Deployments live abgenommen:
+eris `fa225161-20261101T202124Z` (ERIS-STRATA aktiv, Recovery live
+bestanden 20 s, engine_auto_restart in Quell-Config nachgezogen),
+uranus `fa225161-20261101T204523Z` (Profil T, Flux unangetastet,
+Reconcile-Timer wieder aktiv). Rollback via `previous`-Symlink bereit.
+Kanonische Gates: `UPSTREAM_SYNC.md`, `UPSTREAM_BENCHMARKS.md`,
+`../ROADMAP.md`.
 
 Die frueheren `SOLO_SESSION_001` bis `008` dokumentieren vorherige Phasen.
 Ein dortiger historischer No-Drift-Befund oder Massen-Diff-Kurzweg ist
@@ -50,11 +56,11 @@ keine Freigabe fuer diesen Merge.
 | Messclient bereitstellen | Erledigt | `ab_client.py` gefroren (sha 063f4ba0), SSE+TTFT+Engine-Timings, Abbruch bei Fremd-GPU/RAM-Not |
 | Beide Vergleichsarme offline aus lokalen Quellen bauen | In Arbeit | Kandidat aa3e61fa pro Host nativ (eris arch86 gcc-13 wegen libstdc++/nvcc-12.4, uranus arch89); Baseline = gepruefte Deploy-Binaries mit BUILD.json |
 | Host-spezifischen Messplan und Payloads einfrieren | In Arbeit | Payloads v3 (disjunkte Prefill-Slices, 4300/15176 Tokens), plan.json nach Artefakt-Hashes |
-| Freigegebene A/B-Messungen ausfuehren | Offen, delegierte Ausfuehrung | Probelauf, fuenf gepaarte Runden AB/BA/AB/BA/AB, Rohdaten |
-| Messergebnisse und Nutzen selbst beurteilen | Offen, Lead-Aufgabe | Vorgeschriebene Mediane/Min/Max/Rauschen; kein Gesamtscore |
-| Finalen REVIEW-Bericht und Provenienz abschliessen | Offen | Exakte SHAs, Findings, Logs, Grenzen, Nutzen, Gegenpruefung |
+| Freigegebene A/B-Messungen ausfuehren | eris abgeschlossen, uranus laeuft | eris: 10 Arm-Laeufe AB/BA/AB/BA/AB + 4 Zusatz (b026-Defaults), alle rc=0; [gemessen] keine protokollrelevante Regression (decode-wall +10 % < Rauschschwelle 15 %, Prompt-Eval-Delta defaultsbedingt, Steady-State-Decode ~41 t/s beide Arme); Functest ALL-PASS; Deployment fa225161-20261101T202124Z live + Recovery-Probe 20 s bestanden |
+| Messergebnisse und Nutzen selbst beurteilen | Erledigt | [gemessen] eris decode-wall B/A +10 % < Rauschen 15 % (Prompt-Eval defaultsbedingt, Steady-State ~41 t/s gleich); uranus decode-wall +6 % < Rauschen 6,6 %, Decode-Rate −5,6 %, Prefill ±1 %; MTP-Accept auf beiden ~4–6 % niedriger; kein protokollrelevanter Regress, kleiner realer Kostenpunkt dokumentiert |
+| Finalen REVIEW-Bericht und Provenienz abschliessen | Erledigt | Belege: plan-eris.json/plan-uranus.json (Artefakt-/Input-/Tool-Hashes), results/round-*.json + extra-*.json (Rohdaten), Server-Logs, Manifeste in Deploy-Dirs; Grenzen: n=5/Arm, Laptop-Thermik, Flux-Nebenlast 120 MiB uranus |
 | Promotion und Forgejo-Push | Gesperrt bis Gates bestanden | Kein direkter Mirror-/Upstream-Push |
-| Kontrollierter Rollout mit Rollback | Gesperrt bis Gates bestanden | Pro Host Abnahme, anderer Endpunkt verfuegbar |
+| Kontrollierter Rollout mit Rollback | Erledigt | eris zuerst (Deploy + Functest + echter Recovery-Kill 20 s), uranus danach (Deploy + Functest, Flux 120 MiB unangetastet, Timer wieder an); beide Functests ALL-PASS inkl. Auth-Reject; `previous`-Symlinks: eris→d0961243, uranus→2a45eb38 |
 
 ## Audit-Zwischenstand
 
