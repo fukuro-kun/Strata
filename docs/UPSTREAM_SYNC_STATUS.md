@@ -34,6 +34,14 @@
   Auth-401s, 512-Token-Decode, Tool-Call mit JSON-Args, Cancel->idle->
   Followup, `engine_recovery` Feld mit `enabled:false` + 409-Verweis-
   Vertrag (Recovery bleibt aus). Nebenlast (Flux) unveraendert.
+- **sm89-Alternativprofile**: Nachbefund am selben Tag: das aktive
+  Ein-GPU-Profil war korrigiert, aber die inaktiven Q-/R-Startpfade
+  waren noch uneinheitlich. Beide Units erhielten eigene Drop-ins auf
+  den Kandidaten-`run_server.sh`; die Q-Config wurde zusaetzlich auf
+  Engine/Vision/CWD unter `strata-deploy/current` umgestellt. Alle drei
+  Uranus-Units zeigen jetzt auf denselben Kandidaten-Stack. Statisch
+  verifiziert (`systemctl`, JSON-/Pfadpruefung); ein Laufzeittest der
+  inaktiven Dual-GPU-Profile steht wegen GPU-Exklusivitaet noch aus.
 - **Damit ist "vollstaendig ausgerollt und auf beiden abgenommen"
   weiterhin falsch**, aber nicht mehr wegen Mischlaufzeit: beide Hosts
   laufen nun koharent auf dem Kandidaten-Stand. Offen bleiben die
