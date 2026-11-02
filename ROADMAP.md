@@ -5,6 +5,9 @@ stehen in `LOKAL.md` (lokal, nicht versioniert). Arbeitsregeln: `AGENTS.md`.
 
 ## Ziel
 
+Aktueller Integrations-Abgleich und Laufzeitstand: **`docs/UPSTREAM_SYNC_STATUS.md`**
+(2026-11-02: beide Hosts auf Kandidatenstand, Abnahme teiloffen).
+
 - Eigener Strata-Fork, der **nah an upstream** bleibt (geringe, reviewbare Divergenz).
 - **Vollständig erhaltene Historie** — kein Shallow-Clone, keine gekürzte Vorgeschichte.
 - **Pruefziel ist der auszuliefernde Stand samt Lieferkette**, nicht jede
@@ -233,6 +236,14 @@ ursprüngliche Stall-Ursache (Ressourcen-/I/O-Druck, plausibel) bleibt offen.
 Details:
 `docs/DETAILS.md` (GPU-Sharing-Abschnitt, `"engine_auto_restart"`).
 
+### Aktueller Integrations-Abgleich — `docs/UPSTREAM_SYNC_STATUS.md`
+
+Stand 2026-11-02 (Merge `aa3e61fa`, Deploy-Quelle `fa225161`): Abgleich,
+Laufzeit-Evidenz, A/B-Beobachtungen (keine Abnahme), Cache-Tuning-Stand
+und die gewuenschte taegliche Integrations-Pipeline sind im Statusdokument
+gebuendelt. Beide Laufzeitstaende sind kohaerent; offen bleiben die
+Leistungsabnahme und der vollstaendige Rollback-Nachweis.
+
 ### Pre-existing: flaky Sampler-Test (`test_responses.NoLeakedSampler`) — gefixt 2026-10-18
 
 Der Test zählte global alle Threads mit Namen `*(_loop)` (before/after),
@@ -400,7 +411,7 @@ auf Aktivierung von Recovery-Flags auf anderen Hosts ausgeweitet.
   Beschaffung nur bewusst, dokumentiert, gepinnt
 - Keine Modifikation von Upstream-Engine-Code über die Roadmap-Ziele hinaus
   (`serve/` und Engine bleiben upstream-nah)
-- Kein automatischer Upstream-Sync (Cron/Timer) — nur bewusst angestoßen (P4)
+- Taegliche **eigene** Upstream-Integration ist gewuenscht (Nutzer 2026-11-01): bewusster Fetch -> Pin -> Review -> isolierter Merge -> Offline-Regressionen -> Bericht; Konflikt/Gate-Fail = Quarantaene + Meldung. Ziel, NICHT implementiert; keine fremden Workflows, kein unreviewtes Veroeffentlichen, kein Prod-Auto-Deploy. Bestehender `daily`-Radar ist nur Beobachtung. Details `docs/UPSTREAM_SYNC_STATUS.md`
 - Kein Push nach `upstream` (Remote bleibt push-gesperrt)
 - Keine Produktiv-Umstellung vor Abschluss der jeweiligen Phase bzw. vor P4
   für die LAN-Umstellung; jede Umstellung mit dokumentiertem Rollback-Pfad

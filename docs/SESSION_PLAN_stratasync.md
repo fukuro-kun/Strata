@@ -6,16 +6,14 @@ Den freigegebenen vollstaendigen Git-Merge des gepinnten Upstream-Stands
 `c62d5e3a15b40ea51c96aae9e8d36928965f53ab` vorbereiten, pruefen und nur bei
 bestandenen Gates promovieren. Kein Quellen-Snapshot als Ersatz.
 
-**Status: ROLLOUT ABGESCHLOSSEN.** Merge `aa3e61fa` + `fa225161` auf
-`origin/feat/sync-2026-10-31-full-c62d5e3a` gepusht (nach Gegenpruefung:
-kein P0, einziger P1 per .gitignore geschlossen). A/B auf beiden Hosts
-gemessen, beide Deployments live abgenommen:
-eris `fa225161-20261101T202124Z` (ERIS-STRATA aktiv, Recovery live
-bestanden 20 s, engine_auto_restart in Quell-Config nachgezogen),
-uranus `fa225161-20261101T204523Z` (Profil T, Flux unangetastet,
-Reconcile-Timer wieder aktiv). Rollback via `previous`-Symlink bereit.
-Kanonische Gates: `UPSTREAM_SYNC.md`, `UPSTREAM_BENCHMARKS.md`,
-`../ROADMAP.md`.
+**Status: DEPLOY-KOHAERENZ HERGESTELLT, ABNAHME TEILOFFEN.**
+Merge `aa3e61fa` + `fa225161` gepusht; beide Hosts laufen seit
+2026-11-02 00:07Z auf dem vollen Kandidaten-Stand (sm89:
+Drop-in + kontrollierter Neustart nach Idle-Preflight und bestandene
+gezielte Live-Pruefung). Zehn A/B-Arm-Laeufe je Host sind Beobachtungen — keine
+vollstaendige Abnahme; Regressionssignal sm89 prompt_ms dokumentiert.
+Kanonischer Abgleich: `UPSTREAM_SYNC_STATUS.md`; Gates:
+`UPSTREAM_SYNC.md`, `UPSTREAM_BENCHMARKS.md`, `../ROADMAP.md`.
 
 Die frueheren `SOLO_SESSION_001` bis `008` dokumentieren vorherige Phasen.
 Ein dortiger historischer No-Drift-Befund oder Massen-Diff-Kurzweg ist
@@ -54,13 +52,13 @@ keine Freigabe fuer diesen Merge.
 | Uebrige bestaetigte Fehler beheben oder explizites Technical Debt abstimmen | Offen | Reproduzierbarer Beleg, minimaler Fix, passende Regressionstests |
 | Unabhaengige Gegenpruefung | Erledigt, 1 P1 behoben | review-swe frischer Kontext: bereit fuer isoliertes Host-A/B; P1 LOKAL.md vs. Dirty-Tree-Gate per .gitignore geschlossen |
 | Messclient bereitstellen | Erledigt | `ab_client.py` gefroren (sha 063f4ba0), SSE+TTFT+Engine-Timings, Abbruch bei Fremd-GPU/RAM-Not |
-| Beide Vergleichsarme offline aus lokalen Quellen bauen | In Arbeit | Kandidat aa3e61fa pro Host nativ (eris arch86 gcc-13 wegen libstdc++/nvcc-12.4, uranus arch89); Baseline = gepruefte Deploy-Binaries mit BUILD.json |
+| Beide Vergleichsarme offline aus lokalen Quellen bauen | Erledigt | Kandidat aa3e61fa pro Host nativ gebaut (sm86 gcc-13/nvcc-12.4, sm89); aktuelles Manifest verifiziert (fork_sha fa225161, 3 Artefakte + 27 Deps); Rollback-Artefakte existieren, Uebung nicht bewiesen |
 | Host-spezifischen Messplan und Payloads einfrieren | In Arbeit | Payloads v3 (disjunkte Prefill-Slices, 4300/15176 Tokens), plan.json nach Artefakt-Hashes |
-| Freigegebene A/B-Messungen ausfuehren | eris abgeschlossen, uranus laeuft | eris: 10 Arm-Laeufe AB/BA/AB/BA/AB + 4 Zusatz (b026-Defaults), alle rc=0; [gemessen] keine protokollrelevante Regression (decode-wall +10 % < Rauschschwelle 15 %, Prompt-Eval-Delta defaultsbedingt, Steady-State-Decode ~41 t/s beide Arme); Functest ALL-PASS; Deployment fa225161-20261101T202124Z live + Recovery-Probe 20 s bestanden |
-| Messergebnisse und Nutzen selbst beurteilen | Erledigt | [gemessen] eris decode-wall B/A +10 % < Rauschen 15 % (Prompt-Eval defaultsbedingt, Steady-State ~41 t/s gleich); uranus decode-wall +6 % < Rauschen 6,6 %, Decode-Rate −5,6 %, Prefill ±1 %; MTP-Accept auf beiden ~4–6 % niedriger; kein protokollrelevanter Regress, kleiner realer Kostenpunkt dokumentiert |
-| Finalen REVIEW-Bericht und Provenienz abschliessen | Erledigt | Belege: plan-eris.json/plan-uranus.json (Artefakt-/Input-/Tool-Hashes), results/round-*.json + extra-*.json (Rohdaten), Server-Logs, Manifeste in Deploy-Dirs; Grenzen: n=5/Arm, Laptop-Thermik, Flux-Nebenlast 120 MiB uranus |
-| Promotion und Forgejo-Push | Gesperrt bis Gates bestanden | Kein direkter Mirror-/Upstream-Push |
-| Kontrollierter Rollout mit Rollback | Erledigt | eris zuerst (Deploy + Functest + echter Recovery-Kill 20 s), uranus danach (Deploy + Functest, Flux 120 MiB unangetastet, Timer wieder an); beide Functests ALL-PASS inkl. Auth-Reject; `previous`-Symlinks: eris→d0961243, uranus→2a45eb38 |
+| Freigegebene A/B-Messungen ausfuehren | Beide abgeschlossen (Beobachtung) | 10 Arm-Laeufe je Host (5A+5B), alle 200/hash_ok, Decode 512 — Beobachtungen ohne Protokoll-Abnahme: Shared-Server, keine SSE-/Tool-Args-Persistenz, keine Temp-/Takt-Telemetrie, memlock-Abweichung, kein manifest-verifiziertes Rollback; Vorbehalte und Mediane `UPSTREAM_SYNC_STATUS.md` |
+| Messergebnisse und Nutzen selbst beurteilen | Wiederoffen | Zehn Arm-Laeufe/Host sind Beobachtungen, kein Protokoll (Shared-Server, keine SSE-/Tool-Args, keine Telemetrie); sm86 Decode +10,5 %, MTP −8,4 pp; sm89 prompt_ms +23 % mit 18,9 %-Rueckwaerts-Signal > Rauschen — Regressionssignal, keine Abnahme; Details `UPSTREAM_SYNC_STATUS.md` |
+| Finalen REVIEW-Bericht und Provenienz abschliessen | In Arbeit | sm89-Laufzeit kohaerent seit 2026-11-02 00:07Z (Drop-in+Neustart); strenge Live-Pruefung auf sm89 bestanden (Auth-401s, Decode, Tool-JSON-Args, Cancel->idle->Followup, Recovery-409) — das beweist Cancel/Recovery-Vertrag nur dort, nicht beidseitig; offen: manifest-verifizierte Rollback-Uebung, Protokoll-Vorbehalte der aelteren Benchmark-Reihe |
+| Promotion und Forgejo-Push | origin-Push erfolgt, weitere Promotion gesperrt | Branch + Merge-Stand bereits auf origin gespiegelt (Push-Mirror); weitere Promotion/Merge-Gates bleiben offen — kein direkter Upstream-/Mirror-Push |
+| Kontrollierter Rollout mit Rollback | Teilweise | sm86 + sm89 laufen beide auf Kandidatenstand (sm89 nach Korrektur-Neustart + strenger Live-Pruefung bestanden); Functest = Smoke, kein strenger Vertrag; manifest-verifizierte Rollback-Uebung ausstehend — `previous`-Symlinks existieren, 'bereit/getestet' nicht versprochen |
 
 ## Audit-Zwischenstand
 

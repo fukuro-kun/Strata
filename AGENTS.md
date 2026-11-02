@@ -129,6 +129,11 @@ follow it whether a person or an agent writes the text. The short version:
   sofort öffentlich; Regeln in `docs/UPSTREAM_SYNC.md` §Push-Gate.
 - Private Umgebungsdetails (Pfade, Hosts, IDs) gehören in `LOKAL.md` — lokal gehalten,
   niemals committen.
+- **Taegliche eigene Upstream-Integration (Nutzerwunsch 2026-11-01):**
+  Zielbild `docs/UPSTREAM_SYNC_STATUS.md` — der bestehende
+  `daily`-Radar ist nur Beobachtung und implementiert es nicht.
+  Keine fremden Workflows, kein unreviewtes Veroeffentlichen,
+  kein Produktiv-Auto-Deploy. Runner/Zeitplan nicht implementiert.
 - **Acquisition-Default-Deny:** Upstreams Download-/Install-/Update-/Launch-
   Primitive (`strata_control/acquisition.require()`) sind im Fork per Default
   verweigert (`ForkAcquisitionRefused`, Exit 5). Ausnahme nur bewusst reviewte
@@ -154,6 +159,7 @@ follow it whether a person or an agent writes the text. The short version:
 | `LOKAL.md` | Private Umgebungsdetails (nicht versioniert) | Änderungen an Umgebung, Remotes oder Stand |
 | `docs/INVENTAR.md` | P0-Baseline-Inventar: Quellen, Deps, Lizenzen, Toolchain, Provenienz, Offline-Lücken | Bei Baseline-Wechsel oder neuen Artefakten |
 | `docs/UPSTREAM_SYNC.md` | Upstream-Review, täglicher Radar und Promotions-/Push-Gates | Bei Änderungen am Sync-Ablauf oder an Freigaben |
+| `docs/UPSTREAM_SYNC_STATUS.md` | Kanonischer Abgleichsbericht des aktuellen Kandidaten | Nach Integrations-, Deployment- oder Messstandswechsel |
 | `docs/UPSTREAM_BENCHMARKS.md` | Reproduzierbares A/B-Protokoll vor Code-Übernahme | Bei Änderungen an Messplan, Tests oder Entscheidungskriterien |
 | `.devin/skills/strata-upstream/SKILL.md` | Lokaler Agentenablauf für Tagesprüfung und ausgewählte Testkandidaten | Bei Änderungen am Upstream-/Sicherheits-/Benchmark-Ablauf |
 | `docs/SOLO_SESSION_OVERVIEW.md` | Verkettung der Session-Pläne P0–P5 + LAN-Umstellung | Planänderungen, Session-Abgrenzung |

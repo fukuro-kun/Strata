@@ -39,6 +39,15 @@ Netzwerkzugriff, Lauf-Sperre, Agentenrechte und Ergebniszustellung. Bis dahin
 bleibt jeder Fetch bewusst einzeln angestoßen. Auch eine spätere Zeitplan-
 Freigabe autorisiert keinen Merge, Push oder Produktiv-Rollout.
 
+## Taegliche Integration (Nutzerwunsch 2026-11-01)
+
+Eigener taeglicher Integrationslauf ist gewuenscht und loest die
+pauschale "nur bewusst angestossen"-Regel nur fuer diesen Zweck ab.
+Zielpipeline und Grenzen: `UPSTREAM_SYNC_STATUS.md`. Der bestehende
+tägliche Radar-Lauf ist nur Beobachtung; Runner, Zeitplan und
+Benachrichtigung sind **nicht implementiert** — bis dahin gelten die
+bestehenden Regeln unveraendert.
+
 ## Pruefumfang (Nutzerentscheidung 2026-11-01)
 
 Ziel ist ein zuverlaessiges, moeglichst leistungsfaehiges und modernes
