@@ -11,10 +11,11 @@ Merge `aa3e61fa` + `fa225161` gepusht; beide Hosts laufen seit
 2026-11-02 00:07Z auf dem vollen Kandidaten-Stand (sm89:
 Drop-in + kontrollierter Neustart nach Idle-Preflight und bestandene
 gezielte Live-Pruefung). Auf sm89 wurden danach auch die inaktiven
-Q-/R-Profil-Startpfade auf denselben Kandidaten-Stack korrigiert;
-Laufzeittest dieser alternativen Profile steht wegen GPU-Exklusivitaet
-aus. Zehn A/B-Arm-Laeufe je Host sind Beobachtungen — keine
-vollstaendige Abnahme; Regressionssignal sm89 prompt_ms dokumentiert.
+Q-/R-Profil-Startpfade auf denselben Kandidaten-Stack korrigiert und
+kontrolliert live getestet (strenger Probe + Vision jeweils bestanden,
+Rueckkehr zu T/Flux verifiziert). Zehn A/B-Arm-Laeufe je Host sind
+Beobachtungen — keine vollstaendige Abnahme; Regressionssignal sm89
+prompt_ms dokumentiert.
 Kanonischer Abgleich: `UPSTREAM_SYNC_STATUS.md`; Gates:
 `UPSTREAM_SYNC.md`, `UPSTREAM_BENCHMARKS.md`, `../ROADMAP.md`.
 
@@ -61,7 +62,7 @@ keine Freigabe fuer diesen Merge.
 | Messergebnisse und Nutzen selbst beurteilen | Wiederoffen | Zehn Arm-Laeufe/Host sind Beobachtungen, kein Protokoll (Shared-Server, keine SSE-/Tool-Args, keine Telemetrie); sm86 Decode +10,5 %, MTP −8,4 pp; sm89 prompt_ms +23 % mit 18,9 %-Rueckwaerts-Signal > Rauschen — Regressionssignal, keine Abnahme; Details `UPSTREAM_SYNC_STATUS.md` |
 | Finalen REVIEW-Bericht und Provenienz abschliessen | In Arbeit | sm89-Laufzeit kohaerent seit 2026-11-02 00:07Z (Drop-in+Neustart); strenge Live-Pruefung auf sm89 bestanden (Auth-401s, Decode, Tool-JSON-Args, Cancel->idle->Followup, Recovery-409) — das beweist Cancel/Recovery-Vertrag nur dort, nicht beidseitig; offen: manifest-verifizierte Rollback-Uebung, Protokoll-Vorbehalte der aelteren Benchmark-Reihe |
 | Promotion und Forgejo-Push | origin-Push erfolgt, weitere Promotion gesperrt | Branch + Merge-Stand bereits auf origin gespiegelt (Push-Mirror); weitere Promotion/Merge-Gates bleiben offen — kein direkter Upstream-/Mirror-Push |
-| Kontrollierter Rollout mit Rollback | Teilweise | sm86 + sm89 laufen beide auf Kandidatenstand (sm89 nach Korrektur-Neustart + strenger Live-Pruefung bestanden); sm89-Q/R-Startpfade statisch korrigiert, aber ohne Dual-GPU-Laufzeittest; Functest = Smoke, kein strenger Vertrag; manifest-verifizierte Rollback-Uebung ausstehend — `previous`-Symlinks existieren, 'bereit/getestet' nicht versprochen |
+| Kontrollierter Rollout mit Rollback | Teilweise | sm86 + sm89 laufen beide auf Kandidatenstand (sm89 nach Korrektur-Neustart + strenger Live-Pruefung bestanden); sm89-Q/R-Startpfade korrigiert und live getestet (strenger Probe + Vision, Rueckkehr zu T/Flux verifiziert); Functest = Smoke, kein strenger Vertrag; manifest-verifizierte Rollback-Uebung ausstehend — `previous`-Symlinks existieren, 'bereit/getestet' nicht versprochen |
 
 ## Audit-Zwischenstand
 

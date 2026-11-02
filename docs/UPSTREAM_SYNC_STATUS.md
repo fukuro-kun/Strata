@@ -38,10 +38,13 @@
   Ein-GPU-Profil war korrigiert, aber die inaktiven Q-/R-Startpfade
   waren noch uneinheitlich. Beide Units erhielten eigene Drop-ins auf
   den Kandidaten-`run_server.sh`; die Q-Config wurde zusaetzlich auf
-  Engine/Vision/CWD unter `strata-deploy/current` umgestellt. Alle drei
-  Uranus-Units zeigen jetzt auf denselben Kandidaten-Stack. Statisch
-  verifiziert (`systemctl`, JSON-/Pfadpruefung); ein Laufzeittest der
-  inaktiven Dual-GPU-Profile steht wegen GPU-Exklusivitaet noch aus.
+  Engine/Vision/CWD unter `strata-deploy/current` umgestellt. Die
+  Host-Agent-Aktivierungen R und Q liefen danach kontrolliert durch;
+  der strenge Live-Probe (Health, Auth-401s, Decode, Tool-JSON-Args,
+  Cancel->idle->Followup, Recovery-409) und eine Vision-Anfrage
+  bestanden auf beiden Profilen. Anschliessend wurde T wiederhergestellt;
+  gleicher Probe, Vision-Anfrage und Flux-/Host-Agent-Health bestanden.
+  Alle drei Uranus-Strata-Units zeigen auf denselben Kandidaten-Stack.
 - **Damit ist "vollstaendig ausgerollt und auf beiden abgenommen"
   weiterhin falsch**, aber nicht mehr wegen Mischlaufzeit: beide Hosts
   laufen nun koharent auf dem Kandidaten-Stand. Offen bleiben die
