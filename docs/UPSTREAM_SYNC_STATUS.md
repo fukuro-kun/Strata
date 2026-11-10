@@ -133,3 +133,21 @@ eigene Umsetzung mit Entscheidungen.
   Telemetrie fuer kuenftige Benchmark-Reihen.
 - Host-spezifische Cache-Sweeps (sm86/sm89 getrennt, je eine Aenderung).
 - Umsetzung der taeglichen Integrations-Pipeline (separate Aufgabe).
+
+## Beobachtungsstand 2026-11-10
+
+- Neuer Upstream-Tip `dbb2d168cffa8cf793d9325358809d5263c7c6b0`
+  (App 0.2.13 / Engine 0.1.59.1; +1.318 Commits seit `c62d5e3a`)
+  im RADAR `upstream-reviews/RADAR_2026-11-10T202129Z_dbb2d168cffa.md`
+  dokumentiert — nur Bestandsaufnahme, kein Clean-Verdict.
+- Nutzer-freigegebener Folgeplan (Masterplan): (1) Security-Paket
+  Pillow/Vision (`8181522f`, GHSA-78g4-xqwv-q3g8, Allowlist +
+  Pillow-13-Wheels mit Hash-Nachweis), (2) Stabilitätspaket
+  Server-Lifecycle/Vision, (3) Schliessen der offenen Gates hier oben
+  samt Regressions-Diagnose, (4) Grosssync-Entscheidung, (5) taeglicher
+  Radar-Timer (nur Beobachtung). Deploy-Reihenfolge nach
+  Expositions-Befund.
+- Seitenaeste ausserhalb dieser Linie (kein Handeln, separate
+  Entscheidung): `feat/deploy-config-guard` (required-args/deploy-guard
+  `8483495e`, Radar-Doc `b501b7f4`), `feat/native-stall-safety`
+  (eris-recovery-Worktree).
