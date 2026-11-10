@@ -57,8 +57,9 @@ Verzeichnisnamen im Cache. **[gemessen/Code]**
 ```
 numpy==2.5.3 (py>=3.12) | 2.4.6 (py3.11) | 2.2.6 (<3.11)
 jinja2==3.1.6  regex==2026.9.10  pyyaml==6.0.3  tqdm==4.70.1
-requests==2.34.2  cmake==4.4.3  ninja==1.13.2  pillow==12.3.0  psutil==7.2.2
-markupsafe==3.0.3  certifi==2026.7.22  charset-normalizer==3.5.1
+requests==2.34.2  cmake==4.4.3  ninja==1.13.2  psutil==7.2.2
+pillow==13.0.0 (py>=3.11) | 12.3.0 (<3.11)  [GHSA-78g4-xqwv-q3g8]
+markupsafe==3.0.3  certifi==2026.10.19  charset-normalizer==3.5.1
 idna==3.20  urllib3==2.8.0  colorama==0.4.6 (win32)
 ```
 
