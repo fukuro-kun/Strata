@@ -151,3 +151,59 @@ eigene Umsetzung mit Entscheidungen.
   Entscheidung): `feat/deploy-config-guard` (required-args/deploy-guard
   `8483495e`, Radar-Doc `b501b7f4`), `feat/native-stall-safety`
   (eris-recovery-Worktree).
+
+## Phase-1-Ergebnis 2026-11-11: Security-Deploy, Rollback offen
+
+- **Befund:** Bei der letzten Live-Abfrage verwendeten beide Dienste
+  Pillow 12.3.0 mit verfuegbarem JPEG-2000-Decoder und aktiver Vision.
+  Der Requestpfad zum Decoder wurde statisch nachvollzogen; ein Angriff
+  oder praepariertes Bild wurde nicht live durch den Dienst getestet.
+- **Kandidat:** `feat/sync-2026-11-10-pillow-sec` @ `22c64d47` (auf
+  `6c0edb8b`): Cherry-Pick `8181522f` upstream-identisch (range-diff),
+  `PICTURE_FORMATS`-Allowlist an allen drei `Image.open`-Stellen,
+  Pillow-Split-Pin (13.0.0 py>=3.11 / 12.3.0 py<3.11), Wheelhouse-
+  Manifest +2 Hashes (cp312 `42d63be3`, cp314 `e91c2b1c`),
+  INVENTAR-Pin nachgezogen. cp312 stimmt mit Upstream-Lock und PyPI
+  ueberein; cp314 mit PyPI-Metadaten und heruntergeladenen Bytes.
+  Letzteres sind keine zwei unabhaengigen Bezugsquellen.
+- **Gates:** 37 isolierte Tests gruen (Podman, Netz aus, py3.12):
+  ds_pictures 19 / exif 9 / pins 9 sowie JP2-Ablehnung und PNG-
+  Passthrough. Der Test zum Decoderaufruf ist laut Gegenpruefung
+  zirkulaer; der separate Spy prueft die uebergebenen Formatlisten.
+  Details: `upstream-reviews/REVIEW_2026-11-11_1b387a65b3e4.md`
+  auf dem Security-Branch. Der Dateiname enthaelt nicht die korrekte
+  12-stellige SHA; der gepruefte Code-Commit ist
+  `1b387a653d90dfbb144312eada49db2a7fc1ced0`.
+- **Lokaler Nachtest:** Auf Python 3.14/Pillow 13 bestanden 37 Tests
+  in einer netzlosen Bubblewrap-Umgebung. Ein lokal gehaerteter,
+  noch nicht unabhaengig gepruefter JPEG-2000-Test schlug bei
+  absichtlich geoeffneter Formatliste fuer beide Dekoderpfade fehl.
+- **Deploy:** Laut damaliger Abnahme liefen beide Dienste auf
+  `22c64d47` mit Pillow 13.0.0 und beantworteten einen Textrequest;
+  Health meldete Vision aktiviert. Ein produktiver Bildrequest wurde
+  dabei nicht nachgewiesen.
+- **Manifest-Grenze:** `--verify` prueft Engine-Bytes, Checkout-SHA,
+  Pin, deklarierte Wheel-Hashwerte und den Paketstand per `pip freeze`.
+  Es hasht weder die Wheel-Dateien noch die installierten Venv-Dateien
+  erneut. Die Wheel-Dateien wurden damals separat mit `sha256sum -c`
+  geprueft; das ist kein Byte-Nachweis fuer die installierte Venv.
+- **Rollback-Gate OFFEN:** `previous` verweist auf den alten Deploy,
+  aber `rollback.sh` stellt weder den gemeinsam genutzten Checkout
+  noch die Venv wieder her. Bei abweichender Checkout-SHA oder Venv
+  verweigert die Manifestpruefung den Wechsel. Ein vollstaendiger,
+  manifest-verifizierter Rollback ist weder automatisch noch geuebt.
+  Kein weiterer produktiver Wechsel, bevor ein passender Rueckweg
+  vorbereitet und getestet ist.
+
+## Phase-2-Plan: Stabilitaetspaket (naechster Schritt)
+
+Selektive Cherry-Picks Server-Lifecycle/Vision von `dbb2d168`:
+Streaming-Disconnect `c08fd2ec`, Control-Line-Wakeup `f1fd753d`,
+Startfail-Popen-Race `0d922698`, ConvCacheLog-Lock `3f6960f1`,
+Lost-End-Event `a8767488`, Abort-DONE-Swallow `9aea047e`,
+Lifecycle-Bundle `c30aa647`, Vision-READY-Pipe `4cce1ee4`,
+Vision-CPU-Fallback `c53e45a3` + Reporting `78eaaf1b`/`7e8206b5`.
+**Pflicht-Interaktionspruefung:** fork `engine_auto_restart` (im
+Deploy-Stack) + Vision-Lock-Fix `6ef6931a` + die neuen
+`formats=`-Zeilen. Regressionstests pro Fix, review-swe vor Commit,
+REVIEW-Report, Deploy nur nach Gates.
