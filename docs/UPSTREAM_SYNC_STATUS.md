@@ -253,3 +253,24 @@ kritischen oder wichtigen Befunde. Private Rohlogs SHA-256:
 (Tests) und
 `6f77c6a2140ddf4cbe0957d0f272fdf4c7d4992d28d8c1fbad687ccdef195887`
 (Negativkontrolle). Kein Deploy, Paketfreigabe bleibt offen.
+
+## Start-Race-Prüfung (abgeschlossen)
+
+Der Upstream-Kandidat `0d922698f2a44e0d5e7bef8516c620bec0bba097` ist als
+Fork-Fix `ec8f6e45` umgesetzt: Das Prozessobjekt wird schon beim Spawn
+lokal gehalten (der Upstream-Patch erfasst es erst nach der Zuweisung)
+und `restart()` dereferenziert ein zwischenzeitlich freigegebenes
+`self.proc` nicht mehr. Deterministische Negativtests belegten drei
+`AttributeError` vor dem Fix; danach 80 isolierte Tests grün
+(inkl. Auto-Recovery und Restart-Waiter). Unabhängige Gegenprüfung:
+ship-ready, keine P1.
+
+Verbleibende Technical Debt (P2, nur über den fifo-losen
+Shutdown-Closer erreichbar, Kindprozesse werden von
+`lifeline.end_children`/PDEATHSIG eingeholt): `close()` dereferenziert
+`self.proc` noch nicht atomar, `exit_code()` hat ein TOCTOU-Fenster,
+einzelne stdin-Schreiber fangen `AttributeError` nicht, ein
+`ValueError` aus `popen` hinterlässt Narrator und Log-Handle, und das
+Post-READY-Fenster kann `ended=False` gegen ein interleavendes
+`close()` setzen. Kein Deployment-Blocker, aber Kandidat für einen
+eigenen Folge-Fix.
