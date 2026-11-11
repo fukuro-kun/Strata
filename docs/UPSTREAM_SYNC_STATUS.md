@@ -323,8 +323,10 @@ tatsaechlich endgueltigen Code- und Abhaengigkeitsstand gueltig.
   Cache-Lock auch in Tests. Die Dead-Engine-Bereinigung entlaedt einen
   noch laufenden Encoder nur einmal. Die Terminaldiagnose nutzt die
   vorhandene VRAM-Telemetrie statt ein neues Programm ueber `PATH`
-  aufzurufen. Die ungenutzte Vendordatei `split_engine.py` bleibt im
-  Kandidaten und ist keine pauschal abgenommene Lieferkette.
+  aufzurufen. Die ungenutzte Vendordatei `split_engine.py` wurde in `b11b6776`
+  wieder entfernt — nach der `card_free_mib`-Umstellung importierte
+  nichts mehr das Modul; eine Uebernahme folgt erst mit dem
+  Split-Engine-Feature selbst und dessen Review.
 - 162 gezielte Tests und danach 1427 Serve-Tests (17 uebersprungen)
   bestanden in Bubblewrap mit eigenem Netzwerk-Namespace und lokalem
   Loopback. Die Abhaengigkeiten wurden in eine echte Venv aus einzeln
