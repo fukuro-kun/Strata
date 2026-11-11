@@ -175,9 +175,10 @@ eigene Umsetzung mit Entscheidungen.
   12-stellige SHA; der gepruefte Code-Commit ist
   `1b387a653d90dfbb144312eada49db2a7fc1ced0`.
 - **Lokaler Nachtest:** Auf Python 3.14/Pillow 13 bestanden 37 Tests
-  in einer netzlosen Bubblewrap-Umgebung. Ein lokal gehaerteter,
-  noch nicht unabhaengig gepruefter JPEG-2000-Test schlug bei
-  absichtlich geoeffneter Formatliste fuer beide Dekoderpfade fehl.
+  in einer netzlosen Bubblewrap-Umgebung. Der separat gepruefte
+  Test-Commit `c4680b8a` auf dem Follow-up-Branch schlug bei
+  absichtlich geoeffneter Formatliste fuer beide Dekoderpfade fehl;
+  er ist nicht Teil dieses Stabilitaets-Commits.
 - **Deploy:** Laut damaliger Abnahme liefen beide Dienste auf
   `22c64d47` mit Pillow 13.0.0 und beantworteten einen Textrequest;
   Health meldete Vision aktiviert. Ein produktiver Bildrequest wurde
@@ -194,16 +195,46 @@ eigene Umsetzung mit Entscheidungen.
   manifest-verifizierter Rollback ist weder automatisch noch geuebt.
   Kein weiterer produktiver Wechsel, bevor ein passender Rueckweg
   vorbereitet und getestet ist.
+- **Live-Nachpruefung:** Auf beiden Zielsystemen bestand die
+  Manifestpruefung von `current`; die von `previous` scheiterte
+  reproduzierbar an `fork_sha` und `venv pip_freeze drifted`. Beide
+  Dienste waren aktiv. Die Pruefung aenderte weder Symlinks noch
+  Dienste; sie ist keine Rollback-Uebung.
 
-## Phase-2-Plan: Stabilitaetspaket (naechster Schritt)
+## Phase 2: Stabilitaetskandidaten, lokal und nicht deployt
 
-Selektive Cherry-Picks Server-Lifecycle/Vision von `dbb2d168`:
-Streaming-Disconnect `c08fd2ec`, Control-Line-Wakeup `f1fd753d`,
-Startfail-Popen-Race `0d922698`, ConvCacheLog-Lock `3f6960f1`,
+**Lokaler Zwischenstand:** `00eb572a8e9de617aeaa938f7276ec4b8659dc66`
+adaptiert den Control-Line-Wakeup `f1fd753d` und den ConvCacheLog-Lock
+`3f6960f1`. Der Condition-Check wurde an den vorhandenen Fork und
+seine Admission-/Recovery-Logik angepasst, kein unveraenderter
+Cherry-Pick behauptet. Die unabhaengige Gegenpruefung des Diffs und
+der ergaenzten Tests fand zuletzt keine kritischen oder wichtigen
+Befunde. Ein zunaechst vermuteter mehrsekundiger Blocker durch
+`Popen.poll()` wurde nach Pruefung der tatsaechlichen Python-3.12- und
+3.14-Implementierungen zurueckgezogen.
+
+**Testnachweis:** 72 Tests (`test_serve_robustness`, `test_admit_order`,
+`test_engine_recovery`, `test_monitor`) bestanden unter Python 3.14 in
+Bubblewrap ohne Netzwerk und ohne Produktionsdaten. Die Venv verwendete
+das gepruefte lokale Wheelhouse. Bei einer Negativkontrolle ohne den
+Cache-Lock schlug der betreffende Test wie erwartet fehl; der echte
+Code wurde dafuer nicht geaendert. SHA-256 der privaten Rohlogs:
+`7489e11619df411da4d40903c23fd10d25e2a445853eef61d6328f6dbce83a5a`
+(Tests) und
+`f656b62c581a67a0e046e5bd4eace0a49ac3dff085d16a789f2fafd7effb5ecb`
+(Negativkontrolle). Die Logs liegen im lokalen Evidenzarchiv.
+
+**Offen:** Formeller paketbezogener Review-Bericht und begruendeter
+A/B-Nachweis oder Ausnahme, alle weiteren Kandidaten, vollstaendiger
+Rollback und produktive Abnahme. Der Commit ist weder gepusht noch
+promoted oder deployt und keine Freigabe fuer das Gesamtpaket.
+
+Weitere Quellen fuer eine Einzelpruefung aus `dbb2d168`:
+Streaming-Disconnect `c08fd2ec`, Startfail-Popen-Race `0d922698`,
 Lost-End-Event `a8767488`, Abort-DONE-Swallow `9aea047e`,
 Lifecycle-Bundle `c30aa647`, Vision-READY-Pipe `4cce1ee4`,
 Vision-CPU-Fallback `c53e45a3` + Reporting `78eaaf1b`/`7e8206b5`.
 **Pflicht-Interaktionspruefung:** fork `engine_auto_restart` (im
 Deploy-Stack) + Vision-Lock-Fix `6ef6931a` + die neuen
 `formats=`-Zeilen. Regressionstests pro Fix, review-swe vor Commit,
-REVIEW-Report, Deploy nur nach Gates.
+REVIEW-Bericht, Deploy nur nach Gates.
