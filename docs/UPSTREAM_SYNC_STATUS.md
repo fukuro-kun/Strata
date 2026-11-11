@@ -274,3 +274,37 @@ einzelne stdin-Schreiber fangen `AttributeError` nicht, ein
 Post-READY-Fenster kann `ended=False` gegen ein interleavendes
 `close()` setzen. Kein Deployment-Blocker, aber Kandidat für einen
 eigenen Folge-Fix.
+
+## Stabilitätspaket (Cherry-Picks aus `dbb2d168`, Stand 11.11.)
+
+Neun Upstream-Fixes als selektive Picks integriert, einzeln mit
+Konfliktauflösung gegen die Fork-Basis:
+
+| Pick | Upstream | Inhalt |
+|---|---|---|
+| `5627d0f1` | `c08fd2ec` | Streaming-Write-Timeout: stoppender Client gibt die Engine-Runde frei (#4271) |
+| `1ef07c22` | `9aea047e` | ERR/DONE-Synchronisation: trailing DONE nach NaN-Stop wird nicht vom nächsten Request gelesen |
+| `1a3cdc17` | `c30aa647` | Activity-Lease für serve.py-Start, Update-Default = Checkout-Store, Orphan-Encoder bei toter Engine |
+| `9babfe65` | `a8767488` | Fehlendes End-Event beendet die Engine nur bei Prozess-/Turn-Identität (#3961) |
+| `1d02d1fe` | `4cce1ee4` | Vision-READY-Pipe: eine Deadline, Stray-Lines gehalten, kein Kill bei nur druckendem Reader |
+| `7349e8a2` | `78eaaf1b` | Vision-No-Room-Diagnose + `childenv.py`/`reader_room.py` vendored |
+| `c1c6635c` | `c53e45a3` | Vision-CPU-Fallback in allen Modi (NVIDIA gleiche Binary ohne `--gpu`) |
+| `010a7926` | `7e8206b5` | Gemeldeter Bedarf = Gesamtbedarf am Image-Limit, nicht die gescheiterte Allokation |
+| `78acbc8c` | — | Merge-Fixes: `lines_q`→`self.lines`, `getattr`-Lock (Test-Objekte ohne `__init__`), Busy-vor-Dead-Reihenfolge in `unload()`; `split_engine.py` vendored, `VRAM_STOP_NEXT` nachgezogen |
+
+**Bewusst NICHT übernommen:** upstreams `apply_vision_defaults` /
+`vision_on_demand_by_default` (Default-Änderung `vision.elastic`=on,
+wird im Fork nicht aufgerufen; Elastic bleibt konfigurationsgesteuert).
+`f1fd753d` bereits durch `00eb572a` abgedeckt (Code + beide
+Upstream-Tests vorhanden).
+
+**Teststand:** 1423 serve-Tests OK (14 skipped), 35 Terminal-Tests OK
+— Bubblewrap ohne Netz, Wheelhouse-Deps via PYTHONPATH, Python 3.14.
+Erster Lauf zeigte 26 ERROR + 4 FAIL; die ERRORs waren zwei echte
+Merge-Fehler (`lines_q`, `self.lock` auf `__new__`-Objekten), die FAILs
+erwiesen sich als Last-Flakes (einzeln grün, im zweiten Voll-Lauf
+ebenfalls grün). Unabhängige Gegenprüfung des Pakets: **läuft**.
+
+**Offen:** Review-Befund, Engine-Neubau für die C++-Teile
+(NaN-Stop-DONE in `src/`), A/B-Nachweis, rollback-/Promotions-Gates.
+Nicht gepusht, nicht deployt.
