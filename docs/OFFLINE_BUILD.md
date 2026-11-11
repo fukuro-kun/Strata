@@ -119,7 +119,7 @@ Die Server-/Toolchain-Python-Deps laufen aus einem lokalen Wheelhouse —
 tools/offline/fetch_wheels.sh                      # für dieses Python
 tools/offline/fetch_wheels.sh --for-python 3.12    # für ein anderes (binary-only)
 
-# venv aus dem Wheelhouse (offline, --no-index = fail closed):
+# venv aus dem geprueften Wheelhouse:
 tools/offline/make_venv.sh                         # CUDA-Wheels auto nach nvcc
 tools/offline/make_venv.sh --cuda 12|none          # oder explizit
 
@@ -134,10 +134,32 @@ python3 tools/offline/make_config.py NAME --pack DIR --native GGUF ...
 
 - `wheelhouse/*.whl` sind gitignored (LAN-Kopie via rsync/Netzlaufwerk);
   `wheelhouse/MANIFEST.sha256` ist committed — `make_venv.sh` verifiziert das
-  Wheelhouse dagegen **vor** jeder Installation.
-- requirements.txt-Pins **und** die CUDA-Laufzeit-Wheels (`nvidia-cublas`/
-  `nvidia-cuda-runtime`, cu13 und cu12) werden aus `setup.py` gelesen —
-  eine Pin-Quelle.
+  Wheelhouse gegen eine private Kopie des Manifests **vor** der Installation.
+  Eine daraus erzeugte Pin-/Hashliste bindet jedes installierte Wheel auch
+  bei der Installation an diese Kopie. Nicht aufgefuehrte Archive und
+  manipulierte Wheels werden abgelehnt.
+- Python laeuft mit bereinigter Umgebung und `-I`; pip nutzt `--isolated`,
+  `--no-index`, `--no-deps`, `--only-binary` und `--require-hashes`.
+  Direkte URLs, weitere Quellen und nicht exakt gepinnte Requirements
+  werden abgelehnt. Nach Installation prueft `pip check` die vorhandenen
+  Abhaengigkeiten, ohne weitere Pakete aufzulösen oder nachzuladen.
+- Der Lock-Generator akzeptiert nur feste `==`-Pins und die derzeit
+  verwendeten einfachen `python_version`-/`sys_platform`-Marker.
+  Andere Requirements-Syntax muss vor einer Erweiterung geprueft werden.
+  Die kleinen Manifest- und Lockdateien bleiben als Installationsnachweis
+  in einem privaten Temporaerverzeichnis und nach Erfolg auch in der Venv;
+  sie werden weder als `PYTHONPATH` noch als ausfuehrbarer Code verwendet.
+- Das Manifest, die Requirements, Python, `ensurepip`/pip und die
+  Systembibliotheken sind Vertrauensanker. Hashgleichheit beweist nicht
+  deren Herkunft; gepruefte, vor gleichzeitigen Schreibzugriffen
+  geschuetzte Inputs und eine isolierte Testumgebung bleiben erforderlich.
+  Eine Venv und `--no-index` sind keine Netzwerk-Sandbox.
+- Die Python-Pins stehen in `requirements.txt` und
+  `requirements-build.txt`; die CUDA-Laufzeit-Pins (`nvidia-cublas`/
+  `nvidia-cuda-runtime`, cu13 und cu12) liest das Skript aus `setup.py`,
+  ohne dessen Installer zu starten. Auto-Erkennung sucht `nvcc` nur auf
+  dem begrenzten Werkzeugpfad; bei anderem CUDA-Installationsort
+  `--cuda 12` oder `--cuda 13` ausdruecklich setzen.
 - `run_server.sh` validiert die Config (exe existiert, Datei-Flags in args
   wie `--pack`/`--native`/`--mtp` geprüft — `--mtp <n>` für own-path-Modelle
   wird korrekt übersprungen, tokenizer mit vocab/merges/token_type) und
