@@ -338,9 +338,9 @@ tatsaechlich endgueltigen Code- und Abhaengigkeitsstand gueltig.
   `b995aa37a7c3fe81da9aea90a01a996083bb165d64faabd640f93d35e84d89ce`
   (Serve-Suite); die Logs liegen lokal und sind keine GPU-Abnahme.
 - Der unabhaengig gepruefte Decoder-Test aus `c4680b8a` fehlte auf dem
-  Stabilitaetszweig und wurde in den uncommitteten Arbeitsstand
-  uebernommen. 28 Bild-/EXIF-Tests bestanden danach isoliert mit
-  Pillow 13. Der grosse Serve-Lauf fand vor dieser Testanpassung statt.
+  Stabilitaetszweig und wurde in `f22bedb9` uebernommen. 28
+  Bild-/EXIF-Tests bestanden danach isoliert mit Pillow 13. Der grosse
+  Serve-Lauf fand vor dieser Testanpassung statt.
 - `undeclared_tool_calls=call` bleibt Opt-in. Bei ausdruecklichem
   `tool_choice=none` bleibt der Aufruf Text; bei ganz ohne deklarierte
   Tools greift die Option derzeit ebenfalls nicht. Letzteres ist auch

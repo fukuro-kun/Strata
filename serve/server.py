@@ -2976,7 +2976,8 @@ class Vision:
     def _start_reader(self):
         args, log, env = self.spawn
         # fork fix: under self.lock — _ensure_dir clears self.cache, which encode() mutates under the same lock
-        # (a clear between its `key in cache` check and pop() would be a KeyError, an insert-after-clear a stale entry)
+        # (a clear between its `key in cache` check and pop() would be a KeyError, an insert-after-clear a stale entry).
+        # The same lock also covers encode()'s load()/download(), so a restart can wait on a long fetch — bounded, no deadlock.
         with self.lock:
             self._ensure_dir()
         # cwd is the encoder's directory: the ENC lines name the files relative to it (#480: no space in the line)
@@ -5090,7 +5091,7 @@ class Service:
             # die Engine kann bereits von selbst geendet sein: das Entladen bleibt trotzdem die Absicht des
             # Betreibers, also ordentlich aufraeumen - engine.unload() schliesst den Prozess-Handle und vermerkt
             # die Absicht (die Auto-Recovery darf sie nicht wiederbeleben), die Vision kann ebenfalls noch halten
-            dead = not self.engine.alive()
+            dead = hasattr(self.engine, "alive") and not self.engine.alive()
             released = dead and self._release_orphan_encoder()
             self.engine.unload()
             if not released and self.vision is not None and hasattr(self.vision, "unload"):

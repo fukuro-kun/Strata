@@ -53,6 +53,9 @@ def lock_requirements(hashes: dict[tuple[str, str], list[str]], text: str) -> st
             raise ValueError(f"ungueltiger Abhaengigkeits-Pin in Zeile {number}")
         name, version, marker = match.groups()
         key = (canonical(name), version.replace("_", "-").lower())
+        # PEP-440-Localversionen ("2.4.0+cu121") matchen Wheel-Namen
+        # ("2.4.0_cu121" -> "2.4.0-cu121") bewusst nicht: ohne Hash
+        # scheitert --require-hashes fail-closed statt falsch zuzuordnen.
         pin = f"{name}=={version}" + (f"; {marker}" if marker else "")
         pin += "".join(f" --hash=sha256:{digest}" for digest in hashes.get(key, []))
         lines.append(pin)
