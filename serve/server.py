@@ -2477,7 +2477,7 @@ class StrataEngine:
                     return
                 elif line.startswith("ERR"):
                     done = True
-                    self._swallow_trailing_done(lines_q)  # an engine that ended the request on ERR may still print its DONE
+                    self._swallow_trailing_done(self.lines)  # an engine that ended the request on ERR may still print its DONE
                     raise ValueError(line[4:].strip())
         finally:
             if not done:                                  # the consumer stopped early: stop the engine, drain to DONE
@@ -2976,8 +2976,9 @@ class Vision:
     def _start_reader(self):
         args, log, env = self.spawn
         # fork fix: under self.lock — _ensure_dir clears self.cache, which encode() mutates under the same lock
-        # (a clear between its `key in cache` check and pop() would be a KeyError, an insert-after-clear a stale entry)
-        with self.lock:
+        # (a clear between its `key in cache` check and pop() would be a KeyError, an insert-after-clear a stale entry);
+        # getattr: tests build a bare Vision.__new__ without __init__'s lock
+        with getattr(self, "lock", contextlib.nullcontext()):
             self._ensure_dir()
         # cwd is the encoder's directory: the ENC lines name the files relative to it (#480: no space in the line)
         since = vision_log_size(log)                      # this start's own lines of a log that earlier starts wrote to as well
@@ -5079,10 +5080,8 @@ class Service:
         if not self.fifo.acquire(blocking=False):
             return "busy"
         try:
-            if not self.engine.alive():
-                self._release_orphan_encoder()                  # POST /unload gives the card back even when the engine already died (#4352)
-                self.engine.unload()                            # fork: die Entlade-Absicht vermerken, damit die Auto-Recovery sie nicht wiederbelebt
-                return "not loaded"
+            # fork: ein laufender oder auslaufender Request geht vor - auch dann, wenn die Engine schon tot ist
+            # (die Auto-Recovery kann sie neu starten, solange der Request die Runde noch haelt)
             with self.status_lock:
                 if self.status.get("busy") or self.status.get("queued") or self.live_reqs:
                     return "busy"
@@ -5092,6 +5091,8 @@ class Service:
             # Betreibers, also ordentlich aufraeumen - engine.unload() schliesst den Prozess-Handle und vermerkt
             # die Absicht (die Auto-Recovery darf sie nicht wiederbeleben), die Vision kann ebenfalls noch halten
             dead = not self.engine.alive()
+            if dead:
+                self._release_orphan_encoder()                  # POST /unload gives the card back even when the engine already died (#4352)
             self.engine.unload()
             if self.vision is not None and hasattr(self.vision, "unload"):
                 self.vision.unload()

@@ -2378,6 +2378,8 @@ CAUSE_LINE = re.compile(r"error|exception|failed|cannot|can't|could not|no devic
 # The GPU runtime (ROCm) failed while the card was being set up, often right after another engine exited: the runtime's own text
 # ("terminate called after throwing an instance of 'rocr::AMD::hsa_exception'") stays in the log, not in the sentence shown.
 HSA_START = re.compile(r"hsa_exception|HSA_STATUS_ERROR", re.I)
+VRAM_STOP_NEXT = ("A graphics card is too full for this start, even after Strata moved what it could to the processor and the RAM. Close other programs that use the "
+                  "cards, or start on fewer cards (--gpu), or turn pictures off (--vision off); the context and the number of requests were not changed.")
 HSA_START_NEXT = ("The graphics card was not ready yet; wait a few seconds and run it again. If it keeps happening, restart the PC "
                   "and report the log.")
 KNOWN_CAUSES = (
@@ -2517,7 +2519,7 @@ def explain_engine_exit(result: dict, config: Path | None, marks: dict | None = 
     text = stage + (f": {cause}" if cause else ".")
     if not text.endswith((".", "!")):
         text += "."
-    step = HSA_START_NEXT if hsa else next((words for pattern, words in KNOWN_CAUSES if pattern.search(" ".join([cause, str(why or "")]))), "Run it again; if it repeats, report the log.")
+    step = HSA_START_NEXT if hsa else (VRAM_STOP_NEXT if vram_cause else next((words for pattern, words in KNOWN_CAUSES if pattern.search(" ".join([cause, str(why or "")]))), "Run it again; if it repeats, report the log."))
     return text, step + _log_sentence(log)
 
 
