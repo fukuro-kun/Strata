@@ -238,3 +238,18 @@ Vision-CPU-Fallback `c53e45a3` + Reporting `78eaaf1b`/`7e8206b5`.
 Deploy-Stack) + Vision-Lock-Fix `6ef6931a` + die neuen
 `formats=`-Zeilen. Regressionstests pro Fix, review-swe vor Commit,
 REVIEW-Bericht, Deploy nur nach Gates.
+
+## Telemetrie: ResourceWarnings lokal behoben
+
+Der separate Fork-Fix `6565930474890f7c6857e05ad7bc4bcf215c5892`
+schliesst die bisher offenen CPU-/RAM- und Topologie-Dateien. Nicht
+lesbare oder unvollstaendige Messwerte bleiben unbekannt statt den
+Serverstart mit einer Exception abzubrechen. 19 Telemetrie-/Monitor-
+und 6 Topologie-Tests bestanden in Bubblewrap ohne Netz; die
+Negativkontrolle mit dem frueheren offenen `/proc/stat`-Read schlug
+wie erwartet fehl. Die unabhaengige Gegenpruefung fand keine
+kritischen oder wichtigen Befunde. Private Rohlogs SHA-256:
+`d7462cb243b8feb1ba9586d9de037e068c900b3f66fc99b71eb36f076bacc641`
+(Tests) und
+`6f77c6a2140ddf4cbe0957d0f272fdf4c7d4992d28d8c1fbad687ccdef195887`
+(Negativkontrolle). Kein Deploy, Paketfreigabe bleibt offen.
