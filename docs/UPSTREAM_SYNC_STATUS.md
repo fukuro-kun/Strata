@@ -374,6 +374,10 @@ zusammenhaengende Picks der risikoaermere Arbeitsweg; auch diese sind
 erst nach den gleichen relevanten Gates freizugeben. Das ist keine
 endgueltige Entscheidung gegen einen spaeteren Vollsync.
 
-**Offen:** Review-Befund, Engine-Neubau für die C++-Teile
-(NaN-Stop-DONE in `src/`), A/B-Nachweis, rollback-/Promotions-Gates.
-Nicht gepusht, nicht deployt.
+**Offen:** A/B-Nachweis und rollback-/Promotions-Gates.
+Nicht gepusht, nicht deployt. Der einzige C++-Hunk (`nan_stop`-Guard
+in `src/dsv41/ds4_main.cpp`) wurde in `b33f30e7` zurueckgenommen, weil
+die Variable zu Upstreams NaN-Stop-Pfad gehoert, den diese Basis nicht
+enthaelt — er waere ein Kompilierfehler geworden. Damit braucht der
+Kandidat keinen Engine-Neubau; die serverseitige Schutzschicht
+`_swallow_trailing_done` bleibt aktiv.
