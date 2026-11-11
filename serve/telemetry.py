@@ -455,7 +455,8 @@ def _cpu_topology(root: str = "/sys/devices/system"):
         packages = set()
         for f in glob.glob(os.path.join(root, "cpu", "cpu[0-9]*", "topology", "physical_package_id")):
             try:
-                packages.add(open(f, encoding="utf-8").read().strip())
+                with open(f, encoding="utf-8") as package:
+                    packages.add(package.read().strip())
             except OSError:
                 continue
         nodes = len(glob.glob(os.path.join(root, "node", "node[0-9]*")))
@@ -473,9 +474,15 @@ def _cpu_name():
         except OSError:
             pass
     elif os.path.exists("/proc/cpuinfo"):
-        for line in open("/proc/cpuinfo", encoding="utf-8", errors="replace"):
-            if line.startswith("model name"):
-                return line.split(":", 1)[1].strip()
+        try:
+            with open("/proc/cpuinfo", encoding="utf-8", errors="replace") as info:
+                for line in info:
+                    if line.startswith("model name"):
+                        _, sep, value = line.partition(":")
+                        if sep:
+                            return value.strip()
+        except OSError:
+            pass
     return platform.processor() or None
 
 
@@ -492,9 +499,10 @@ class _CpuRamFallback:
                 return idle.value, kern.value + user.value           # kernel time includes idle
             return None
         try:
-            f = [int(x) for x in open("/proc/stat").readline().split()[1:]]
+            with open("/proc/stat") as stat:
+                f = [int(x) for x in stat.readline().split()[1:]]
             return f[3] + f[4], sum(f)
-        except (OSError, ValueError):
+        except (OSError, ValueError, IndexError):
             return None
 
     def cpu(self):
@@ -519,11 +527,12 @@ class _CpuRamFallback:
                 return m.ullTotalPhys - m.ullAvailPhys, m.ullTotalPhys
             return None, None
         try:
-            info = dict(line.split(":", 1) for line in open("/proc/meminfo"))
+            with open("/proc/meminfo") as meminfo:
+                info = dict(line.split(":", 1) for line in meminfo)
             total = int(info["MemTotal"].split()[0]) * 1024
             avail = int(info["MemAvailable"].split()[0]) * 1024
             return total - avail, total
-        except (OSError, KeyError, ValueError):
+        except (OSError, KeyError, ValueError, IndexError):
             return None, None
 
 
