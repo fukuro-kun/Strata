@@ -244,6 +244,13 @@ und die gewuenschte taegliche Integrations-Pipeline sind im Statusdokument
 gebuendelt. Beide Laufzeitstaende sind kohaerent; offen bleiben die
 Leistungsabnahme und der vollstaendige Rollback-Nachweis.
 
+Nachtrag 2026-11-11: Der Pillow-Sicherheitsstand `22c64d47` lief bei der
+letzten Abnahme auf beiden Zielsystemen. Die `previous`-Manifeste
+scheitern dort an abweichendem Checkout und Venv-Paketstand; ein
+vollstaendiger Rollback ist weder automatisch noch geuebt. Die fruehere
+Formulierung "Rollback ueber previous scharf" belegt nur den Zeiger,
+nicht die Wiederherstellung von Checkout und Venv.
+
 ### Pre-existing: flaky Sampler-Test (`test_responses.NoLeakedSampler`) — gefixt 2026-10-18
 
 Der Test zählte global alle Threads mit Namen `*(_loop)` (before/after),

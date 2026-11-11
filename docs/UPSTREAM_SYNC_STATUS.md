@@ -290,7 +290,8 @@ Konfliktauflösung gegen die Fork-Basis:
 | `7349e8a2` | `78eaaf1b` | Vision-No-Room-Diagnose + `childenv.py`/`reader_room.py` vendored |
 | `c1c6635c` | `c53e45a3` | Vision-CPU-Fallback in allen Modi (NVIDIA gleiche Binary ohne `--gpu`) |
 | `010a7926` | `7e8206b5` | Gemeldeter Bedarf = Gesamtbedarf am Image-Limit, nicht die gescheiterte Allokation |
-| `78acbc8c` | — | Merge-Fixes: `lines_q`→`self.lines`, `getattr`-Lock (Test-Objekte ohne `__init__`), Busy-vor-Dead-Reihenfolge in `unload()`; `split_engine.py` vendored, `VRAM_STOP_NEXT` nachgezogen |
+| `78acbc8c` | — | Merge-Fixes: `lines_q`→`self.lines`, Busy-vor-Dead-Reihenfolge in `unload()`; `split_engine.py` vendored, `VRAM_STOP_NEXT` nachgezogen. Der damalige `getattr`-Lock-Fallback wird im aktuellen Arbeitsstand wieder entfernt. |
+| `09cd5a16` | `75acfca3` | Opt-in `undeclared_tool_calls=call` mit Parser-Backport; Default bleibt `text` |
 
 **Bewusst NICHT übernommen:** upstreams `apply_vision_defaults` /
 `vision_on_demand_by_default` (Default-Änderung `vision.elastic`=on,
@@ -298,12 +299,78 @@ wird im Fork nicht aufgerufen; Elastic bleibt konfigurationsgesteuert).
 `f1fd753d` bereits durch `00eb572a` abgedeckt (Code + beide
 Upstream-Tests vorhanden).
 
-**Teststand:** 1423 serve-Tests OK (14 skipped), 35 Terminal-Tests OK
-— Bubblewrap ohne Netz, Wheelhouse-Deps via PYTHONPATH, Python 3.14.
-Erster Lauf zeigte 26 ERROR + 4 FAIL; die ERRORs waren zwei echte
-Merge-Fehler (`lines_q`, `self.lock` auf `__new__`-Objekten), die FAILs
-erwiesen sich als Last-Flakes (einzeln grün, im zweiten Voll-Lauf
-ebenfalls grün). Unabhängige Gegenprüfung des Pakets: **läuft**.
+**Korrigierter Teststand:** Fuer einen frueheren Paketstand wurden
+1423 Serve-Tests (14 uebersprungen) in Bubblewrap ohne Netz mit
+entpackten Wheel-Abhaengigkeiten gemeldet. Die 35 Terminal-Tests liefen
+hingegen **nicht** in Bubblewrap; die fruehere Aussage oben war falsch.
+Von vier FAILs des ersten Laufs waren mindestens zwei echte
+Integrationsfehler bei der Unload-Reihenfolge, keine blossen Last-Flakes.
+Der nachtraegliche Parser-Pick und die noch uncommittierten Korrekturen
+sind durch diesen historischen Lauf nicht abgenommen.
+
+Die unabhängige Gegenprüfung des Gesamtpakets wurde durch Rate-Limits
+abgebrochen und ist **offen**. Eine erneute Auswertung ist nur fuer den
+tatsaechlich endgueltigen Code- und Abhaengigkeitsstand gueltig.
+
+**Lokaler Arbeitsstand nach `09cd5a16`:**
+
+- Eine versehentlich mit der Vision-Diagnose uebernommene Aenderung der
+  VRAM-Kontextplanung wurde ausgegrenzt. Der bestehende Planungsanteil
+  entspricht wieder der Basis vor dem Vision-Paket; der explizite
+  Kontext bleibt dabei wie bisher geschuetzt. Die Entscheidung ueber
+  eine spaetere Upstream-Aenderung der Defaults ist separat offen.
+- `Vision` nutzt beim Wiederherstellen seines Arbeitsverzeichnisses den
+  Cache-Lock auch in Tests. Die Dead-Engine-Bereinigung entlaedt einen
+  noch laufenden Encoder nur einmal. Die Terminaldiagnose nutzt die
+  vorhandene VRAM-Telemetrie statt ein neues Programm ueber `PATH`
+  aufzurufen. Die ungenutzte Vendordatei `split_engine.py` bleibt im
+  Kandidaten und ist keine pauschal abgenommene Lieferkette.
+- 162 gezielte Tests und danach 1427 Serve-Tests (17 uebersprungen)
+  bestanden in Bubblewrap mit eigenem Netzwerk-Namespace und lokalem
+  Loopback. Die Abhaengigkeiten wurden in eine echte Venv aus einzeln
+  hashgeprueften lokalen Wheels installiert. Der nachtraegliche
+  `tool_choice=none`-Test bestand separat in 18 Tool-Choice-Tests.
+  Rohlogs SHA-256:
+  `d3ecc4d791b8ec893fd96a72f83210edd9d1178ca13f7385cea7feee1f827b90`
+  (gezielt) und
+  `b995aa37a7c3fe81da9aea90a01a996083bb165d64faabd640f93d35e84d89ce`
+  (Serve-Suite); die Logs liegen lokal und sind keine GPU-Abnahme.
+- Der unabhaengig gepruefte Decoder-Test aus `c4680b8a` fehlte auf dem
+  Stabilitaetszweig und wurde in den uncommitteten Arbeitsstand
+  uebernommen. 28 Bild-/EXIF-Tests bestanden danach isoliert mit
+  Pillow 13. Der grosse Serve-Lauf fand vor dieser Testanpassung statt.
+- `undeclared_tool_calls=call` bleibt Opt-in. Bei ausdruecklichem
+  `tool_choice=none` bleibt der Aufruf Text; bei ganz ohne deklarierte
+  Tools greift die Option derzeit ebenfalls nicht. Letzteres ist auch
+  im uebernommenen Upstream-Code so und vor einer Nutzung zu klaeren.
+- Die fruehere Diagnose eines fehlenden `ensurepip`-Bundles war falsch:
+  Die Distribution liefert das pip-Wheel getrennt; die Sandbox brauchte
+  fuer dessen Bootstrap eine lesbare System-CA-Datei. Python und dieses
+  OS-pip sind zusaetzliche, lokal bereitgestellte Vertrauensanker.
+- Der Offline-Venv-Installer wurde gegen manipulierte Umgebung, fremde
+  pip-Quellen, direkte Requirements- und Metadaten-Links sowie
+  Veraenderungen von Wheels und Manifest waehrend der Installation
+  gehaertet. 16 isolierte Tests bestanden; Negativkontrollen am jeweils
+  frueheren Stand belegten die Fehler. Der echte Installer erzeugte in
+  Bubblewrap Venvs aus dem vorhandenen Wheelhouse mit Python 3.14 und
+  ohne CUDA bzw. mit CUDA-12-/CUDA-13-Wheels; `pip check` und Imports
+  bestanden. Der abschliessende atomare Venv-Anlagepfad wurde dabei mit
+  CUDA 13 erneut durchlaufen. Python 3.12, ein GPU-Build und die
+  unabhaengige Pruefung dieses Installers bleiben offen.
+
+**Radar:** Der separate lokale Rohdaten-Radar bestand 19 netzlose
+Tests mit synthetischen Git-Repositories. HTTPS, Timer, Zustellung und
+Host-/Zeitpunktfreigabe sind nicht geprueft oder aktiviert; der Digest
+ersetzt keinen vollstaendigen Tagesbericht. Der lokal bekannte
+Upstream-Tip `dbb2d168cffa8cf793d9325358809d5263c7c6b0` ist der
+Beobachtungsstand vom 2026-11-10, kein Nachweis der heutigen Aktualitaet.
+
+**Grosssync-Entscheidung:** Bis ein vollstaendiger Zieldiff und seine
+Lieferkette sowie der geforderte A/B-Vergleich vorliegen, ist eine
+Volluebernahme nicht freigabefaehig. Vorlaeufig bleiben kleine,
+zusammenhaengende Picks der risikoaermere Arbeitsweg; auch diese sind
+erst nach den gleichen relevanten Gates freizugeben. Das ist keine
+endgueltige Entscheidung gegen einen spaeteren Vollsync.
 
 **Offen:** Review-Befund, Engine-Neubau für die C++-Teile
 (NaN-Stop-DONE in `src/`), A/B-Nachweis, rollback-/Promotions-Gates.
