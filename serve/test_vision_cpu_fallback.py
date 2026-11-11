@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import threading
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -90,6 +91,7 @@ class Fallback(unittest.TestCase):
         v.fallback = (self.script(cpu_body), log, env)
         v.gpu_spawn, v.cpu_spawn = v.spawn, v.fallback
         v.dir = Path(self.tmp.name)
+        v.lock, v.cache = threading.Lock(), {}
         v.stopped, v.proc, v.on_cpu, v.cpu_note, v.elastic = True, None, False, None, False
         return v
 

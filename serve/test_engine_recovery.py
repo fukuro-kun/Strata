@@ -182,6 +182,17 @@ class TickUnits(unittest.TestCase):
         self.assertEqual(self.tick(svc), "idle")
         self.assertEqual(svc.engine.restarts, [])
 
+    def test_unload_dead_engine_releases_live_encoder_once(self):
+        svc = self.svc()
+        self.dead(svc)
+        svc.vision = mock.Mock()
+        svc.vision.alive.return_value = True
+        svc.vision_held = True
+        self.assertEqual(svc.unload(), "not loaded")
+        svc.vision.unload.assert_called_once_with()
+        self.assertFalse(svc.vision_held)
+        self.assertTrue(svc.engine.unloaded)
+
     def test_unload_dead_engine_with_busy_or_draining_request_stays_busy(self):
         for mark in ("busy", "queued", "live"):
             svc = self.svc()

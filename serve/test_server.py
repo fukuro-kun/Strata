@@ -4676,6 +4676,18 @@ class ForcedToolChoice(unittest.TestCase):
         finally:
             self.svc.undeclared_tool_calls = "text"
 
+    def test_undeclared_tool_calls_call_respects_tool_choice_none(self):
+        self.says(self._undeclared_call_answer("execute_gdscript"))
+        self.svc.undeclared_tool_calls = "call"
+        try:
+            for stream in (False, True):
+                with self.subTest(stream=stream):
+                    code, response = self.openai(stream=stream, tool_choice="none")
+                    finish, calls, _ = self.call_of(code, response, stream)
+                    self.assertEqual((finish, calls), ("stop", []), response)
+        finally:
+            self.svc.undeclared_tool_calls = "text"
+
     def test_undeclared_tool_calls_setting(self):
         from serve.server import undeclared_tool_calls_setting
         old = os.environ.pop("STRATA_UNDECLARED_TOOL_CALLS", None)
@@ -6586,4 +6598,3 @@ class PrepareCancelled(unittest.TestCase):
             ids, _, _ = svc.prepare(self.msgs(), None, {}, cancel=threading.Event())
             self.assertEqual(ids.count(ByteTokenizer().encode("<|image_pad|>", parse_special=True)[0]), 6)
             svc.embeddings.path.unlink(missing_ok=True)
-

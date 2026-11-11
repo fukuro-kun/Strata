@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -50,6 +51,7 @@ class ReadyPipe(unittest.TestCase):
         v = server.Vision.__new__(server.Vision)
         v.spawn = ([sys.executable, "-u", str(script)], None, None)
         v.dir = Path(self.tmp.name)
+        v.lock, v.cache = threading.Lock(), {}
         v.stopped, v.proc = True, None
         return v
 
@@ -83,6 +85,23 @@ class ReadyPipe(unittest.TestCase):
         self.assertIsNone(v.proc.poll(), "a reader that was only printing is still running")
         self.assertIn("[New LWP 477206]", said)                      # logged
         self.assertIn("printed on its output", said)
+
+    def test_start_recreates_the_work_dir_under_the_cache_lock(self):
+        v = self.reader("""
+            print("READY 2560", flush=True)
+            sys.stdin.readline()
+        """)
+        ensure_dir = v._ensure_dir
+        held = []
+
+        def check_lock():
+            held.append(v.lock.locked())
+            ensure_dir()
+
+        v._ensure_dir = check_lock
+        error, _, _ = self.start(v)
+        self.assertIsNone(error)
+        self.assertEqual(held, [True])
 
     def test_the_encode_answers_after_READY_are_not_taken_by_the_start(self):
         v = self.reader("""

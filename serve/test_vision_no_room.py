@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import threading
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -59,6 +60,7 @@ class NoRoom(unittest.TestCase):
         v = server.Vision.__new__(server.Vision)
         v.spawn = ([sys.executable, "-u", str(script)], log, None)
         v.dir = Path(self.tmp.name)
+        v.lock, v.cache = threading.Lock(), {}
         v.stopped, v.proc = True, None
         return v
 

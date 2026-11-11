@@ -2976,9 +2976,8 @@ class Vision:
     def _start_reader(self):
         args, log, env = self.spawn
         # fork fix: under self.lock — _ensure_dir clears self.cache, which encode() mutates under the same lock
-        # (a clear between its `key in cache` check and pop() would be a KeyError, an insert-after-clear a stale entry);
-        # getattr: tests build a bare Vision.__new__ without __init__'s lock
-        with getattr(self, "lock", contextlib.nullcontext()):
+        # (a clear between its `key in cache` check and pop() would be a KeyError, an insert-after-clear a stale entry)
+        with self.lock:
             self._ensure_dir()
         # cwd is the encoder's directory: the ENC lines name the files relative to it (#480: no space in the line)
         since = vision_log_size(log)                      # this start's own lines of a log that earlier starts wrote to as well
@@ -5092,10 +5091,9 @@ class Service:
             # Betreibers, also ordentlich aufraeumen - engine.unload() schliesst den Prozess-Handle und vermerkt
             # die Absicht (die Auto-Recovery darf sie nicht wiederbeleben), die Vision kann ebenfalls noch halten
             dead = not self.engine.alive()
-            if dead:
-                self._release_orphan_encoder()                  # POST /unload gives the card back even when the engine already died (#4352)
+            released = dead and self._release_orphan_encoder()
             self.engine.unload()
-            if self.vision is not None and hasattr(self.vision, "unload"):
+            if not released and self.vision is not None and hasattr(self.vision, "unload"):
                 self.vision.unload()
             self.vision_held = False
             if dead:

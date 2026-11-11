@@ -2452,21 +2452,19 @@ def _reader_room_facts(config: Path | None, room: reader_room.NoRoom) -> tuple[i
     named by vision.cuda_device); the free memory is read after the failure, when the reader is gone, so it is what the reader had."""
     card = free = None
     try:
+        from serve import server as _server
         cfg = read_config(config) if config else {}
         vision = cfg.get("vision") or {}
         if vision.get("cuda_device") is not None:
             visible = [vision["cuda_device"]]
         else:
-            from serve import server as _server
             visible = _server.hip_visible(cfg) if cfg.get("backend") == "hip" else _server.ordered_gpus(cfg)
         card = reader_room.physical_card(room.device, visible)
     except Exception:                                    # noqa: BLE001 - the figures are a convenience; the sentence is complete without them
         card = None
     if card is not None:
         try:
-            from strata_control import split_engine as SE
-            cards = SE.probe_cards([card])
-            free = cards[0].free_mib if cards else None
+            free = _server.card_free_mib(card, amd=cfg.get("backend") == "hip")
         except Exception:                                # noqa: BLE001
             free = None
     return card, free

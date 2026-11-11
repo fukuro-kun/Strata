@@ -6,6 +6,7 @@ and, for a kernel-image error, the card/architecture hint.
 """
 import io
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -65,6 +66,7 @@ class StartError(unittest.TestCase):
         v = server.Vision.__new__(server.Vision)
         v.spawn = (["strata-vision"], None, None)
         v.dir = Path(tempfile.gettempdir())
+        v.lock, v.cache = threading.Lock(), {}
         with mock.patch.object(server, "popen", lambda *a, **k: proc):
             with self.assertRaises(RuntimeError) as cm:
                 v._start()
