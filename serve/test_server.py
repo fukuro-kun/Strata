@@ -1920,6 +1920,20 @@ class GpuChoice(unittest.TestCase):
             self.assertEqual(sc, {0: 128 * 2350.0, 1: 64 * 2000.0, 2: 128 * 2350.0})
             self.assertIsNone(hip_speed_scores([0, 1, 2, 3], root=d))      # a card the topology does not have
 
+    def test_kfd_readers_close_properties_on_success_and_invalid_data(self):
+        from serve.server import hip_gpu_archs, hip_speed_scores
+        with tempfile.TemporaryDirectory() as d:
+            os.mkdir(os.path.join(d, "0"))
+            for reader, expected in ((lambda: hip_gpu_archs(root=d), {0: "gfx1151"}),
+                                     (lambda: hip_speed_scores([0], root=d), {0: 32000.0})):
+                for simd, want in (("16", expected), ("bad", None)):
+                    with self.subTest(expected=expected, simd=simd):
+                        props = io.StringIO(f"simd_count {simd}\nmax_engine_clk_fcompute 2000\n"
+                                            "gfx_target_version 110501\n")
+                        with mock.patch("serve.server.open", return_value=props, create=True):
+                            self.assertEqual(reader(), want)
+                        self.assertTrue(props.closed)
+
     DEVICES_MINI_PC = (
         "device 0: AMD Radeon 760M Graphics\n  arch gfx1103, 8.0 GiB, wave32\n  cannot run: GPU 0 (AMD Radeon 760M Graphics, gfx1103) is not an "
         "architecture this Strata engine was compiled for (gfx1200,gfx1201); compile it\n"
@@ -5414,6 +5428,21 @@ class SilentEngine(unittest.TestCase):
                 f.write("strata verify trace: dump\n" * 1500)
             engine.proc.poll.return_value = -6
             self.assertIn("a hang it caught", engine.death_note())
+
+    @unittest.skipIf(os.name == "nt", "POSIX signal exit codes")
+    def test_sigterm_without_a_known_sender_does_not_claim_oom(self):
+        import signal
+        engine = self.bare(0.3)
+        engine.proc.poll.return_value = -int(signal.SIGTERM)
+        note = engine.death_note()
+        self.assertIn("SIGTERM", note)
+        self.assertIn("source is unknown", note)
+        self.assertNotIn("running out of RAM", note)
+        with tempfile.TemporaryDirectory() as d:
+            engine.log_path = os.path.join(d, "e.log")
+            Path(engine.log_path).write_text("strata serve: old watchdog hang (issue #29)\n")
+            self.assertIn("SIGTERM", engine.death_note())
+            self.assertNotIn("a hang it caught", engine.death_note())
 
     def test_death_note_names_a_finite_rttime_limit_on_signal_9(self):
         # #3238: a hard RLIMIT_RTTIME of 0 (PipeWire without rtkit) kills with -9 and no OOM; say so, not "out of RAM"

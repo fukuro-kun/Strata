@@ -45,6 +45,16 @@ Isolation einzurichten, produktive Dienste zu stoppen oder Hosts zu belegen.
 Host, Testfenster und Ressourcengrenzen vorher freigeben lassen. Insbesondere
 keine Tests auf produktivem uranus ohne ausdrückliche Erlaubnis.
 
+Ein eigener Port isoliert weder die GPU noch den Host-Agenten: Eine
+Reconciliation kann Prozesse außerhalb der verwalteten Units auf einer
+GPU mit Soll-Service beenden und den Produktivdienst erneut starten.
+Vor einem Lauf daher Agent-/Timer-Zustand, Soll-Services, GPU-Zuordnung,
+cgroups und Portbelegung erheben. Nur auf einer nachweislich nicht von
+der produktiven Orchestrierung beanspruchten Testumgebung messen oder
+ein gesondert freigegebenes, kontrolliertes Testfenster mit explizitem
+Wiederherstellungsplan verwenden. Timer, Sollzustand und Dienste werden
+nicht allein durch dieses Messprotokoll geändert.
+
 ## Eingefrorener Messplan
 
 Vor dem ersten Lauf `plan.json` und alle Request-Payloads lokal archivieren,
@@ -83,9 +93,12 @@ Der Plan enthält:
 
 Produktionsgleiche Prozesslimits (insbesondere MEMLOCK) nachweisen. Beide
 Arme nie gleichzeitig GPU/RAM belegen lassen. Server direkt mit bekannter
-PID starten, keinen `timeout`-Wrapper für den Server verwenden. Vor dem
-nächsten Arm sauberes Ende seiner Kinder und Freigabe des Speichers prüfen.
-Nur selbst gestartete Testprozesse beenden; keine globalen Cache-Drops.
+PID starten, keinen `timeout`-Wrapper für den Server verwenden. Pro Arm
+Server- und Engine-PID, Elternschaft, Prozessgruppe, cgroup/Unit und
+tatsächliche Limits dokumentieren. Signale nur mit belegtem Sender zuordnen;
+fehlen solche Belege, bleibt die Quelle offen. Vor dem nächsten Arm
+sauberes Ende seiner Kinder und Freigabe des Speichers prüfen. Nur selbst
+gestartete Testprozesse beenden; keine globalen Cache-Drops.
 
 ## Drei standardisierte Tests
 

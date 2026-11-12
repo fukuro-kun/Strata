@@ -68,7 +68,7 @@ from serve import runconfig  # noqa: E402
 from serve.webfiles import subtree_file as web_subtree_file  # noqa: E402
 from strata_control import engine_component  # noqa: E402
 from strata_control import tls  # noqa: E402
-from strata_control.childenv import quiet_crash_env  # noqa: E402
+# children get GGML_NO_BACKTRACE via serve/lifeline.popen (strata_control/childenv.py)
 from strata_control import reader_room  # noqa: E402
 
 tls.install()       # #3722: image URLs and tool servers over HTTPS are checked against the operating system's certificates
@@ -1288,7 +1288,7 @@ class StrataEngine:
             q.put(None)
 
     def death_note(self) -> str:
-        """Why the engine most likely ended, from the end of its log: its own watchdog (issue #29), else RAM."""
+        """A known stop reason, the exit signal, or a likely cause from the end of the engine's log."""
         if getattr(self, "silent_note", None):          # #481: the server ended it, not the OS or the engine itself
             return self.silent_note
         tail = wide = ""
@@ -1300,13 +1300,16 @@ class StrataEngine:
             tail = wide[-4096:]
         except (OSError, TypeError):
             pass
+        proc = self.proc                                 # None while a restart has not started the next one yet
+        rc = proc.poll() if proc is not None else None
+        if os.name != "nt" and rc == -int(signal.SIGTERM):
+            return ("The engine was ended by SIGTERM; the source is unknown. Check service managers and other process "
+                    "supervisors before assuming the engine ran out of RAM.")
         # #1705: STRATA_VERIFY_TRACE dumps are ~30 KB and push the watchdog's line out of a 4 KB tail
         for line in reversed(wide.splitlines()):
             if "issue #29" in line:
                 return ("The engine stopped itself because it had stopped making progress - a hang it caught. Its log "
                         "line: " + line.strip() + " - please report it at github.com/Niko1221/Strata/issues.")
-        proc = self.proc                                 # None while a restart has not started the next one yet
-        rc = proc.poll() if proc is not None else None
         if rc is not None and rc >= 0 and self.last_err:  # its own last words on stdout: they say why
             return (f"The engine exited (code {rc}) after it reported: {self.last_err} - please report it at "
                     "github.com/Niko1221/Strata/issues with the log.")
@@ -2977,37 +2980,50 @@ class Vision:
         args, log, env = self.spawn
         # fork fix: under self.lock — _ensure_dir clears self.cache, which encode() mutates under the same lock
         # (a clear between its `key in cache` check and pop() would be a KeyError, an insert-after-clear a stale entry).
-        # The same lock also covers encode()'s load()/download(), so a restart can wait on a long fetch — bounded, no deadlock.
+        # encode() holds that same lock for its cache and proc work (its load()/download() runs first, outside the lock).
         with self.lock:
             self._ensure_dir()
         # cwd is the encoder's directory: the ENC lines name the files relative to it (#480: no space in the line)
         since = vision_log_size(log)                      # this start's own lines of a log that earlier starts wrote to as well
-        self.proc = popen("the image encoder", args, role="vision", stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                          stderr=log or subprocess.DEVNULL, text=True, encoding="utf-8", errors="replace", bufsize=1,
-                          env=env, cwd=self.dir)
+        proc = popen("the image encoder", args, role="vision", stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                     stderr=log or subprocess.DEVNULL, text=True, encoding="utf-8", errors="replace", bufsize=1,
+                     env=env, cwd=self.dir)
+        with self.lock:
+            self.proc = proc
         strays: list[str] = []
         try:
-            line = self._await_ready(VISION_READY_S, strays)
+            line = self._await_ready(VISION_READY_S, strays, proc)
         except RuntimeError as e:                       # silent for VISION_READY_S: it was ended, and it is not left half-started
-            self.proc, self.stopped = None, True
+            with self.lock:
+                proc, self.proc = self.proc, None
+                self.stopped = True
+            if proc is not None:                        # the deadline kill needs a wait too, or the child stays a zombie until GC
+                try:
+                    proc.kill()
+                    proc.wait(timeout=5)
+                except (OSError, subprocess.TimeoutExpired, AttributeError):
+                    pass
             if VISION_READY_S:
                 raise RuntimeError(vision_start_error("", log, waited=VISION_READY_S, strays=strays, since=since)) from None
             raise RuntimeError(str(e)) from None
         if not line.startswith("READY"):
-            proc, self.proc = self.proc, None
-            self.stopped = True
-            code = proc.poll() if hasattr(proc, "poll") else None   # an encoder that died by itself has its status already
-            try:
-                proc.kill()
-                proc.wait(timeout=5)
-            except (OSError, subprocess.TimeoutExpired):
-                pass
+            with self.lock:
+                proc, self.proc = self.proc, None       # a close() racing this start leaves proc=None, not a stale handle
+                self.stopped = True
+            code = proc.poll() if proc is not None and hasattr(proc, "poll") else None   # an encoder that died by itself has its status already
+            if proc is not None:
+                try:
+                    proc.kill()
+                    proc.wait(timeout=5)
+                except (OSError, subprocess.TimeoutExpired, AttributeError):
+                    pass
             if code is None:
                 code = getattr(proc, "returncode", None)
             message = vision_start_error(line, log, code, strays=strays, since=since)
             room = reader_room.find((line + chr(10) + chr(10).join(strays) + chr(10) + vision_log_tail(log, since=since)).splitlines())
             raise (VisionNoRoom(message, room) if room else RuntimeError(message))
-        self.stopped = False
+        with getattr(self, "lock", None) or contextlib.nullcontext():
+            self.stopped = False
 
     #: how long a reader that has already ended may still hold its output pipe open (a debugger attached to it, a child it started) before the start is
     #: judged: the pipe's end does not come, the process's end is what counts.
@@ -3015,14 +3031,14 @@ class Vision:
     #: lines kept from a reader's output before its answer (and written to the log): enough to see what it said, not a flood
     STRAY_KEEP = 20
 
-    def _await_ready(self, timeout: float | None, strays: list) -> str:
+    def _await_ready(self, timeout: float | None, strays: list, proc=None) -> str:
         """The reader's answer to its start: "READY ..." or "ERR ..." (what strata-vision prints on stdout; everything else it says goes to stderr),
         or "" when it has ended.  Any other line on stdout is a stray line - a debugger a crashing reader started, a library's banner - and is not an
         answer: it is kept in `strays` (the last STRAY_KEEP), written to the log, and the wait goes on.  A reader that is only printing is never killed.
         The wait has ONE deadline of `timeout` s (None: for ever); on it the reader is killed and the read raises RuntimeError, as `_readline` does.  A
         reader whose process has ended while a debugger or a child still holds its pipe open counts as ended after READY_GRACE_S.  The thread that
         reads stops at the answer, so the encode answers that follow are never taken by it."""
-        proc = self.proc
+        proc = proc if proc is not None else self.proc   # the caller's fresh child — a racing close() swaps self.proc to None
         got: queue.Queue = queue.Queue()
 
         def read():
@@ -3044,7 +3060,7 @@ class Vision:
             if deadline is not None and now >= deadline:
                 try:
                     proc.kill()
-                except OSError:
+                except (OSError, AttributeError):
                     pass
                 raise RuntimeError(f"the vision encoder did not start: it said nothing for {timeout:.0f} s")
             try:
@@ -3084,7 +3100,8 @@ class Vision:
         except queue.Empty:
             try:
                 proc.kill()
-            except OSError:
+                proc.wait(timeout=5)                    # reap it — a killed encoder must not linger as a zombie
+            except (OSError, subprocess.TimeoutExpired, AttributeError):
                 pass
             raise RuntimeError(f"{what}: it said nothing for {timeout:.0f} s") from None
 
@@ -3111,13 +3128,14 @@ class Vision:
 
     def restart(self):
         """Start the encoder again after an unload (or if it died); the cache of encoded images is kept."""
-        if self.proc is not None:
+        with getattr(self, "lock", None) or contextlib.nullcontext():   # __new__-built test doubles carry no lock
+            proc, self.proc = self.proc, None           # swap under the same lock encode() holds — no check-then-act on self.proc
+            self.stopped = True
+        if proc is not None:
             try:
-                self.proc.kill()
-            except OSError:
+                proc.kill()
+            except (OSError, AttributeError):
                 pass
-        self.proc = None
-        self.stopped = True
         self._start()
 
     @staticmethod
@@ -3262,9 +3280,10 @@ class Vision:
                   "tokens' from the reader's log with the report", flush=True)
 
     def close(self):
-        proc, self.proc = self.proc, None
-        if proc is None:
+        with getattr(self, "lock", None) or contextlib.nullcontext():   # __new__-built test doubles carry no lock
+            proc, self.proc = self.proc, None           # under encode()'s lock: a mid-write encode can never lose its proc
             self.stopped = True
+        if proc is None:
             return
         try:
             proc.stdin.write("QUIT\n")
@@ -3273,13 +3292,12 @@ class Vision:
         except Exception:
             try:
                 proc.kill()
-            except OSError:
+            except (OSError, AttributeError):
                 pass
             try:
                 proc.wait(timeout=10)
             except (OSError, subprocess.TimeoutExpired):
                 pass
-        self.stopped = True
 
     def shutdown(self):
         """#914: close() for good: the server ends, so the encoder's directory (one ~10 MB .sve per image, on a tmpfs
@@ -3655,7 +3673,8 @@ def hip_speed_scores(indices: list[int], root: str = "/sys/class/kfd/kfd/topolog
     cards = []
     for n in nodes:
         try:
-            props = dict(line.split() for line in open(os.path.join(root, str(n), "properties")) if len(line.split()) == 2)
+            with open(os.path.join(root, str(n), "properties")) as f:
+                props = dict(line.split() for line in f if len(line.split()) == 2)
             simd, clk = int(props.get("simd_count", 0)), int(props.get("max_engine_clk_fcompute", 0))
         except (OSError, ValueError):
             continue
@@ -3692,7 +3711,8 @@ def hip_gpu_archs(root: str = "/sys/class/kfd/kfd/topology/nodes") -> dict[int, 
     out: dict[int, str] = {}
     for n in nodes:
         try:
-            props = dict(line.split() for line in open(os.path.join(root, str(n), "properties")) if len(line.split()) == 2)
+            with open(os.path.join(root, str(n), "properties")) as f:
+                props = dict(line.split() for line in f if len(line.split()) == 2)
             ver, simd = int(props.get("gfx_target_version", 0)), int(props.get("simd_count", 0))
         except (OSError, ValueError):
             continue

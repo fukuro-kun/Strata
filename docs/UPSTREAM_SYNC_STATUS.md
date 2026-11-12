@@ -203,6 +203,35 @@ eigene Umsetzung mit Entscheidungen.
 
 ## Phase 2: Stabilitaetskandidaten, lokal und nicht deployt
 
+**A/B-Versuch vom 12.11.: ungueltig, Freigabe blockiert.** Der
+Produktivarm verwendete einen laufenden Prozess mit Cache und einen anderen
+Config-Pfad als der frisch gestartete Kandidat `5269b4a1`. Der aktuelle
+Config-Vergleich zeigt unterschiedliche GPU-Zuordnungen; Config-Hashes
+aus dem Testzeitpunkt fehlen. Im Kandidatenlog scheiterte `mlock`. Der
+Host-Agent versuchte im Testfenster, einen als fremd betrachteten
+GPU-Prozess mit SIGTERM zu beenden und die Produktiv-Unit neu zu
+starten; der Port war bereits belegt. Die Zuordnung der protokollierten
+PID zur Kandidaten-Engine ist nicht sicher belegt. Der zuvor behauptete
+Lifecycle-Fehler ist damit nicht nachgewiesen. Die verfuegbaren Rohlogs
+und Nachtraege liegen im privaten A/B-Evidenzarchiv; der Messclient und
+die vollstaendigen Request-Payloads wurden nicht archiviert. Ein isolierter
+Wiederholungsversuch und alle weiteren Freigabegates sind offen.
+Die noch nicht veroeffentlichten Zwischencommits mit internen
+Konfigurationsdetails benoetigen vor einem Push eine gesondert
+freigegebene Historienbereinigung.
+
+**Diagnosekorrektur:** Die bereits in der Basis enthaltene allgemeine
+RAM-Vermutung war bei SIGTERM irrefuehrend. Die Meldung benennt jetzt
+das Signal und laesst dessen Quelle offen; Lifecycle und Recovery sind
+unveraendert. Der nachfolgende Serve-Volltest bestand mit 1.432 Tests
+(17 uebersprungen) in Bubblewrap ohne externes Netz. Nach einem
+zusaetzlichen Fix zweier vorbestehender offener KFD-Topologiedateien
+bestanden 100 gezielte Tests, darunter 512 Tokens ohne Signal, externes
+SIGTERM nach 432 Tokens und ein nativer Fatal-Fehler. Der Volltest wurde
+nach dem KFD-Fix nicht wiederholt. Weitere ResourceWarnings zu Sockets,
+Pipes und HTTP-Fehlerobjekten bleiben ungeklärt; kein GPU- oder
+A/B-Nachweis.
+
 **Lokaler Zwischenstand:** `00eb572a8e9de617aeaa938f7276ec4b8659dc66`
 adaptiert den Control-Line-Wakeup `f1fd753d` und den ConvCacheLog-Lock
 `3f6960f1`. Der Condition-Check wurde an den vorhandenen Fork und

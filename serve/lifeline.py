@@ -29,6 +29,7 @@ from pathlib import Path
 
 from serve import winjob
 from strata_control import procs
+from strata_control.childenv import quiet_crash_env
 
 _REAL_POPEN = subprocess.Popen                  # tests replace subprocess.Popen; isinstance needs the class
 LINUX = sys.platform.startswith("linux")
@@ -280,6 +281,8 @@ def popen(args, role: str = "engine", **kw) -> subprocess.Popen:
 
     It also leaves a record (strata_control/procs.py) so that, if everything here dies anyway, the next start can
     find this process by PID, start time and command line and end it."""
+    env = kw.get("env")
+    kw["env"] = quiet_crash_env(dict(os.environ) if env is None else env)   # every child gets GGML_NO_BACKTRACE
     how = mechanism()
     isolate = role in ISOLATED_ROLES
     if isolate and os.name == "nt":

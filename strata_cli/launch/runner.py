@@ -684,7 +684,8 @@ class Runner:
     def _spawn(self, argv: list[str], *, env: dict | None = None, cwd: str | None = None) -> subprocess.Popen:
         kw = {"creationflags": subprocess.CREATE_NO_WINDOW} if WINDOWS else {}
         p = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                             encoding="utf-8", errors="replace", env=env or self._env(), cwd=cwd, bufsize=1, **kw)
+                             encoding="utf-8", errors="replace",
+                             env=quiet_crash_env(env if env is not None else self._env()), cwd=cwd, bufsize=1, **kw)
         self.children.append(p)
         return p
 
