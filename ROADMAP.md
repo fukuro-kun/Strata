@@ -5,8 +5,17 @@ stehen in `LOKAL.md` (lokal, nicht versioniert). Arbeitsregeln: `AGENTS.md`.
 
 ## Ziel
 
+Aktueller Integrations-Abgleich und Laufzeitstand: **`docs/UPSTREAM_SYNC_STATUS.md`**
+(2026-11-02: beide Hosts auf Kandidatenstand, Abnahme teiloffen).
+
 - Eigener Strata-Fork, der **nah an upstream** bleibt (geringe, reviewbare Divergenz).
 - **Vollständig erhaltene Historie** — kein Shallow-Clone, keine gekürzte Vorgeschichte.
+- **Pruefziel ist der auszuliefernde Stand samt Lieferkette**, nicht jede
+  historische Dateiversion (Nutzerentscheidung 2026-11-01). Nicht eingesetzte
+  Bereiche getrennt ausweisen; Details: `docs/UPSTREAM_SYNC.md`.
+- **Linux ist die Zielplattform.** Keine Apple-/Windows-Builds oder
+  umfangreichen Plattformtests; nur Linux-relevante Vertrauensgrenzen
+  und gemeinsam verwendete Komponenten pruefen.
 - **Keine ungeprüften Release-Binaries** — Builds aus geprüften Quellen mit lokaler Toolchain.
 - **Kein Docker-Erfordernis** für Build, Start oder Kalibrierung.
 
@@ -211,11 +220,36 @@ und joint vor `engine.close()`; ein bereits laufender Start darf zu Ende
 laufen — die Bereitschaftswarte (`ENGINE_READY_S`, Default 900 s) begrenzt
 nur das Warten auf READY, Hooks und Cleanup laufen zusätzlich.
 
-**Status:** Lokal implementiert und mit CPU-Fakeprozess getestet; **kein**
-produktiver Rollout — Configs auf den Hosts sind noch nicht aktiviert,
-kein Live-GPU-Fehlertest. Der Fix heilt den Deadlock, nicht den zugrunde
-liegenden nativen Verify-Hang. Details: `docs/DETAILS.md`
-(GPU-Sharing-Abschnitt, `"engine_auto_restart"`).
+**Status:** Auf den main-Stand portiert und mit CPU-Fakeprozess- und
+Server-Regressionstests geprueft; der abschliessende Server-Testlauf
+umfasste 404 Tests (ein Skip wegen optional fehlendem `jsonschema`).
+**Freigabe 2026-10-31 (User):** gezielter produktiver Rollout **nur auf
+dem lokal dokumentierten Produktionshost** — einschließlich Dienst-Neustart und gezieltem Beenden
+**ausschließlich** des laufenden Engine-Kindprozesses bei freiem Slot
+als Live-Nachweis. Andere Hosts sind weiterhin **nicht** freigegeben —
+Configs und Ressourcen-Tuning dort unverändert. **Umgesetzt 2026-10-31: auf dem
+freigegebenen Produktionshost deployt und live abgenommen** — kontrollierter
+Kindtod bei freiem Slot, autonomer Watchdog-Neustart beginnt nach 0,94 s, Engine
+ready nach 17,7 s, wartender Request wurde mit 200 bedient (Details nur in
+`LOKAL.md`). Der Fix heilt den Recovery-Deadlock nach Kindtod — die
+ursprüngliche Stall-Ursache (Ressourcen-/I/O-Druck, plausibel) bleibt offen.
+Details:
+`docs/DETAILS.md` (GPU-Sharing-Abschnitt, `"engine_auto_restart"`).
+
+### Aktueller Integrations-Abgleich — `docs/UPSTREAM_SYNC_STATUS.md`
+
+Stand 2026-11-02 (Merge `aa3e61fa`, Deploy-Quelle `fa225161`): Abgleich,
+Laufzeit-Evidenz, A/B-Beobachtungen (keine Abnahme), Cache-Tuning-Stand
+und die gewuenschte taegliche Integrations-Pipeline sind im Statusdokument
+gebuendelt. Beide Laufzeitstaende sind kohaerent; offen bleiben die
+Leistungsabnahme und der vollstaendige Rollback-Nachweis.
+
+Nachtrag 2026-11-11: Der Pillow-Sicherheitsstand `22c64d47` lief bei der
+letzten Abnahme auf beiden Zielsystemen. Die `previous`-Manifeste
+scheitern dort an abweichendem Checkout und Venv-Paketstand; ein
+vollstaendiger Rollback ist weder automatisch noch geuebt. Die fruehere
+Formulierung "Rollback ueber previous scharf" belegt nur den Zeiger,
+nicht die Wiederherstellung von Checkout und Venv.
 
 ### Pre-existing: flaky Sampler-Test (`test_responses.NoLeakedSampler`) — gefixt 2026-10-18
 
@@ -236,13 +270,155 @@ nach `server_close()`. Reine Test-Änderung, kein Lifecycle-Change.
 - **Forgejo-Mirror**: optionaler Zukunftsschritt. Die kanonische Remote-Rolle
   muss **vor** einem Wechsel entschieden werden.
 
+## Sektorierte Freigabe 2026-10-31 (nur dieser Sync)
+
+Der Nutzer hat **für diese eine Integration** (`c62d5e3a` auf
+`feat/eris-engine-recovery`-Basis) freigegeben: sequentielle Testfenster und
+— nach bestandenen Gates — das Deployment auf den zwei lokal benannten
+Produktionshosts, **ein Host nach dem anderen**. Keine generelle oder
+zukünftige Freigabe. Host-Zuordnung und Privatdetails bleiben in
+`LOKAL.md`. Die historische Eris-Recovery-Freigabe wird dadurch **nicht**
+auf Aktivierung von Recovery-Flags auf anderen Hosts ausgeweitet.
+
+## Bestätigter Memory-Safety-Fix (Verifikation offen)
+
+- **PGroup-Fenster-OOB unter `--batch-mtp` + `--batch-groups`**: `slots_in_windows`
+  klemmte bei `batch_mtp` nicht auf `kVerifyMaxT`; ein piped-Fenster schrieb GS
+  Token-/Pos-Zeilen ueber die Verifier-Grenze hinaus (Host-OOB bei `kVerifyMaxT=8`
+  ab GS 9, bei Wide-Build 16 ab GS 17). Fix: neuer reiner Helper
+  `batch_groups::group_window_fits()` + zweiter fail-closed Guard vor der PGroup-
+  Konstruktion (refuse, kein Clamping). Serial-Pfad unveraendert; Default-Profile
+  (kein --batch, kein Layer-Split-Pipelining; MTP selbst ist in
+  beiden eingefrorenen Produktions-Profilen vorhanden und unbetroffen) unbetroffen.
+- **Verifikationsstand**: statisch bestaetigt (Review-Kette, kein GPU-Repro);
+  `batch_groups_test` inkl. der neuen Checks lokal gruen (kein GPU, kein
+  Modelllauf); `generate.cpp` als geaenderte TU kompiliert unter den Build-Flags
+  einzeln (`STRATA_VERIFY_MAX_T=8` und `=16` separat) — kein vollstaendig gelinkter
+  Engine-Nachweis. HIP/SYCL/Metal nutzen dieselbe Quelle — Backend-
+  Validierung bleibt offen (Gate, nicht "gruen"). Das eingefrorene `ec02`-Binary
+  bleibt nur Referenz, kein Kandidaten-Artefakt mehr.
+- **User-Entscheide**: voller Git-Merge (kein Source-Snapshot);
+  keine automatische CI im Fork — `.github/workflows` bleiben als manuelle
+  Upstream-Referenz (`on:` nur `workflow_dispatch`, Jobs zusätzlich
+  repository-guarded).
+- **P2-Befund (Updater-Test-Start)**: `default_test_start` entfernte
+  `STRATA_API_KEY` innerhalb von `_patched_environ`, ohne ihn in der
+  Env-Map zu erfassen — der Eltern-Key ging nach dem Kontext verloren
+  (nur expliziter Update-Smoke-Pfad, kein Produktionspfad; der
+  Produktions-Updater ist ohnehin Default-Deny). Fix: `'STRATA_API_KEY': ''`
+  in der Env-Map (eine Zeile). AST-Unit-Test 4/4 gruen im Clean-Env
+  (`integration/narrow/updater-env-cleanenv/`, Negativbeleg 2 fail /
+  Positivlauf 4 pass). Die unabhaengige Gegenpruefung bleibt offen.
+- **P2-Befund (Komponenten-Installationspfad)**: `ComponentStore.install`
+  setzte `into = staging / artifact.unpack_to` ohne Pruefung — ein
+  Manifest konnte die Stage verlassen (`..`, absolute Pfade, Drives, UNC,
+  Symlink-Umgehung). Bibliothekspfad, kein Produktions-Caller belegt
+  (der gepruefte CLI-Manifestplan `_components_plan` ist read-only); statisch
+  bestaetigt, nicht als RCE bewiesen. Fix am Schreibpunkt: `unpack_to`
+  gegen `_check_member_within` (lexikalisch + aufgeloest) geprueft;
+  `None`/`''`/`'.'`/`'./'` explizit als Stage-Root akzeptiert, Nicht-Strings
+  als ComponentError. Test 7/7 gruen im Clean-Env
+  (`integration/narrow/component-dest-cleanenv/`, Negativbeleg 2 Tests /
+  7 subTests fail, Positivlauf alle ok). Die unabhaengige Gegenpruefung
+  bleibt offen.
+- **P2-Befund (DSV41-Beschaffungs-Gate)**: Die lokale Paketinstallation
+  `install_package` und die Remote-HEAD-Probe `source_reachable` hatten
+  kein Beschaffungs-Gate. Eine vorhandene
+  DeepSeek-Installation erreichte den Feed-HEAD auch mit
+  `STRATA_NO_ACQUIRE`, ein lokales signiertes Upstream-Paket umging
+  die Beschaffungskontrolle. Statisch bestaetigter Policy-Gap, kein
+  Produktions-Angriffspfad; der aktuelle Qwen-Offline-Starter ist nicht betroffen.
+  `install`/`upgrade` hatten bereits ein indirektes Feed-Gate; die neuen
+  Eingangsguards verhindern dort nun auch vorgelagerte lokale Nebeneffekte.
+  Fix: ein Top-Import + 4 Guards (`acquisition.require(...)` je erste
+  ausfuehrbare Zeile bzw. vor `urlsplit` nach dem lokalen Zweig).
+  Test 7/7 Methoden / 16 subTests gruen im Clean-Env
+  (`integration/narrow/dsv41-gate-cleanenv/`, Negativbeleg 1 fail,
+  Positivlauf alle ok; lokale Probe bleibt ohne Acquisition erlaubt,
+  getestet). Die unabhaengige Gegenpruefung bleibt offen.
+- **P2 Mac-Plan-Expertenzahl**: Die Anzeige-Rundung auf 0.1 GB wurde vor
+  der Expertenzaehlung angewandt. Synthetische Plaene konnten dadurch mehr
+  als die vorhandenen 15360 Experten oder zu wenige bei Vollresidenz
+  melden. `_plan_mac` zaehlt jetzt aus ungerundetem Budget und behandelt
+  Vollresidenz exakt. Drei isolierte Testmethoden bestehen; dieselben
+  Tests hatten vorher 16 Subtest-Fehler. Nur Plan-Metadaten, kein
+  GPU-/Produktionsnachweis. Gesamt-Gegenpruefung, Lieferkette und A/B
+  weiterhin offen.
+- **P2-Befund (MCP-Installations-Gate)**: `Tools.launch_install` und
+  `install_job` in `tools/strata_mcp.py` schrieben State/Spec und
+  starteten den Installer-Kindprozess ohne Acquisition-Gate; im
+  Control-Zweig wurde `STRATA_NO_ACQUIRE` fuer das Kind sogar entfernt
+  (bei geerbtem Allow konnte so der Beschaffungsstopp im Kind verloren
+  gehen). Statisch belegte Kette, kein realer Installerlauf, kein
+  Qwen-Produktionscaller. Fix:
+  sys.path-Guard + Gate als erste Zeile beider Primitive, `env.pop`
+  entfernt, `main --install-job` ueber `main_guard` (Exit 5 statt
+  Traceback). MCP-Modellinstaller und Hintergrundjob brauchen vor
+  State-/Spec-/Venv-Zugriff das Fork-Beschaffungs-Gate. STRATA_NO_ACQUIRE
+  wird nicht mehr fuer CONTROL-Kinder entfernt; Allow ueberstimmt diesen
+  Stopp weiterhin nicht. Nur isolierte Mock-/AST-Belege, keine echte
+  Installation (8/8 Methoden gruen inkl. Bootstrap-AST-Test,
+  Negativbeleg: beide Primitive erreichten ungated lokale Sentinels).
+  Die unabhaengige Gesamt-Gegenpruefung bleibt offen.
+- **P2-Befund (CUDA-12-Treiberfloor-Feed)**: Die
+  CUDA-12-Treiberfloor-Abfrage konnte den signierten Feed ueber einen
+  eigenen Thread ohne Fork-Allow-Gate lesen (`from_feed` in
+  `driver_floor.py`; `setup.py` pruefte nur `is_forbidden`). `from_feed`
+  prueft jetzt vor dem Threadstart; lokale installierte Metadaten und
+  der konstante Fallback bleiben ohne Beschaffung erlaubt. Isolierte
+  Mock-Belege, kein realer Download (7/7 Methoden gruen, Negativbeleg
+  1 fail: Mock-Thread ungated erreicht). Die unabhaengige
+  Gesamt-Gegenpruefung bleibt offen.
+- **P2-Befund (Windows-HIP-Hardwareprobe)**: `hip_devices` kopierte vor
+  `--list-devices` Runtime-DLLs in den Engine-Ordner. Auch die
+  Planungs-Hardwareabfrage erreichte diesen Helfer. Die Probe repariert
+  jetzt nicht mehr; `hip_card` repariert weiterhin vor der expliziten
+  Installationspruefung. Sechs isolierte AST-/Mock-Testmethoden bestehen,
+  am ungefixten Stand schlagen fuenf unabhaengige Subtest-Assertions
+  wegen der DLL-Schreibzugriffe fehl. Kein Windows-/HIP-Hardwaretest,
+  kein Nachweis fuer vollstaendig schreibfreies `--plan`; weitere
+  Nebenwirkungen und die unabhaengige Gesamt-Gegenpruefung bleiben offen.
+- **P2-Befund (Metal-/SYCL-Build-Gates)**: Die Metal-Buildhelfer
+  starteten CMake/Ninja direkt; mit schon vorhandenen Quellen, Headern
+  und Werkzeugen konnte das Beschaffungs-Gate entfallen. Engine- und
+  Bildleser-Build pruefen jetzt vor den Build-Vorbereitungen. Der
+  SYCL-Bildleser prueft vor der oneAPI-Umgebung, nicht erst in CMake;
+  die Verweigerung wird nicht mehr als normaler Buildfehler geschluckt.
+  Vorhandene gueltige Artefakte bleiben ohne Allow wiederverwendbar.
+  Beide Backend-Einstiege behandeln Verweigerungen mit Exit 5 statt
+  Traceback. Dreizehn isolierte AST-/Mock-Methoden bestehen; identische
+  Tests am Original belegen zwoelf Gate-Verletzungen und vier fehlende
+  Fehlerbehandlungen. Keine echte Backend-Kompilation oder Installation;
+  unabhaengige Gesamt-Gegenpruefung und Backend-Nachweise bleiben offen.
+- **P2-Befund (Standalone-MTP-Beschaffung)**: `tools/mtp_fetch.py`
+  konnte direkt per CLI oder Helfer HEAD-/GET-Anfragen ohne Fork-Gate
+  senden. Der normale Root-Setup-Aufruf war bereits durch `run`
+  geschuetzt; kein neuer Produktions-Bypass daraus. Metadaten-, Fetch-
+  und Range-Primitiven sowie CLI pruefen jetzt vor Netz-, Thread- oder
+  Lock-Vorbereitung. `verify` bleibt offline ohne Allow nutzbar
+  (einschliesslich seines lokalen Verifikationscaches). Verweigerungen
+  werden mit Exit 5 gemeldet. Dreizehn isolierte Gate-/Mock-Methoden
+  und drei selektierte bestehende Range-Tests bestehen; identische
+  Gate-Tests am Original belegen 24 negative Subtests und zwei fehlende
+  Guard-Behandlungen. Keine echten Downloads, Threads oder Modelle;
+  unabhaengige Gesamt-Gegenpruefung weiterhin offen.
+- **P2-Befund (Supply-Chain-Gate, lokale Paketinstallation)**:
+  `strata_cli/update_cmd.py` verzweigte `install-file` VOR dem
+  Acquisition-Gate; `updater.install_engine_file` hatte keines — ein
+  explizites lokales signiertes Upstream-Paket umging die
+  Fork-Beschaffungskontrolle (kein Netz-/RCE-Befund, kein
+  Produktionspfad). Fix: eine Zeile `require_acquisition("the local engine
+  package")` als erste ausfuehrbare Zeile. Test 5/5 gruen im Clean-Env
+  (`integration/narrow/local-engine-gate-cleanenv/`, Negativbeleg 1 fail,
+  Positivlauf alle ok). Die unabhaengige Gegenpruefung bleibt offen.
+
 ## Weiterhin verboten (trotz Freigabe P0–P4)
 
 - Keine Auto-Downloads oder Fallback-Beschaffung in eigenen Pfaden —
   Beschaffung nur bewusst, dokumentiert, gepinnt
 - Keine Modifikation von Upstream-Engine-Code über die Roadmap-Ziele hinaus
   (`serve/` und Engine bleiben upstream-nah)
-- Kein automatischer Upstream-Sync (Cron/Timer) — nur bewusst angestoßen (P4)
+- Taegliche **eigene** Upstream-Integration ist gewuenscht (Nutzer 2026-11-01): bewusster Fetch -> Pin -> Review -> isolierter Merge -> Offline-Regressionen -> Bericht; Konflikt/Gate-Fail = Quarantaene + Meldung. Ziel, NICHT implementiert; keine fremden Workflows, kein unreviewtes Veroeffentlichen, kein Prod-Auto-Deploy. Bestehender `daily`-Radar ist nur Beobachtung. Details `docs/UPSTREAM_SYNC_STATUS.md`
 - Kein Push nach `upstream` (Remote bleibt push-gesperrt)
 - Keine Produktiv-Umstellung vor Abschluss der jeweiligen Phase bzw. vor P4
   für die LAN-Umstellung; jede Umstellung mit dokumentiertem Rollback-Pfad

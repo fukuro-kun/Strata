@@ -15,12 +15,18 @@
 
 set -euo pipefail
 
+PATH=/usr/bin:/bin:/usr/local/cuda/bin
+export PATH
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 WH="$REPO_ROOT/wheelhouse"
 VENV="$REPO_ROOT/.venv-offline"
+LOCK_PY="$REPO_ROOT/tools/offline/lock_python_deps.py"
 
 die()  { echo "make_venv: ERROR: $*" >&2; exit 1; }
 info() { echo "make_venv: $*"; }
+clean_python() {
+  /usr/bin/env -i PATH="$PATH" HOME=/nonexistent LC_ALL=C PIP_CONFIG_FILE=/dev/null "$@"
+}
 
 PY="$(command -v python3 || true)"
 CUDA=auto
@@ -34,33 +40,44 @@ while [ $# -gt 0 ]; do
 done
 
 [ -x "$PY" ] || die "python not found: $PY"
-"$PY" -c 'import ensurepip' 2>/dev/null \
+clean_python "$PY" -I -c 'import ensurepip' 2>/dev/null \
   || die "ensurepip missing for $PY (on Debian/Ubuntu: python3-venv — deliberate install)"
 [ -d "$WH" ] || die "wheelhouse/ missing — run tools/offline/fetch_wheels.sh first (deliberate procurement)"
 ls "$WH"/*.whl >/dev/null 2>&1 || die "wheelhouse/ has no wheels — run tools/offline/fetch_wheels.sh first"
 [ -f "$WH/MANIFEST.sha256" ] || die "wheelhouse/MANIFEST.sha256 missing — procurement incomplete?"
+[ -f "$LOCK_PY" ] || die "offline requirements lock tool missing"
+# Eine private Kopie haelt Pruefung und Installation auf demselben Manifest.
+LOCK_DIR="$(mktemp -d /tmp/strata-venv-lock.XXXXXXXX)"
+LOCK_MANIFEST="$LOCK_DIR/MANIFEST.sha256"
+cp "$WH/MANIFEST.sha256" "$LOCK_MANIFEST"
+clean_python "$PY" -I "$LOCK_PY" --manifest "$LOCK_MANIFEST" --check-manifest \
+  || die "invalid wheelhouse manifest"
 
 # Verify the wheelhouse against its committed manifest before installing
 # anything: a tampered or truncated wheel fails here, not at runtime. Files
 # NOT listed in the manifest are flagged too — a planted wheel would install
 # happily otherwise.
 info "verifying wheelhouse against MANIFEST.sha256"
-( cd "$WH" && sha256sum --check --quiet MANIFEST.sha256 ) \
+( cd "$WH" && sha256sum --check --quiet "$LOCK_MANIFEST" ) \
   || die "wheelhouse failed MANIFEST.sha256 verification — do not install"
 UNEXPECTED="$(cd "$WH" && comm -23 \
   <(shopt -s nullglob; printf '%s\n' *.whl *.tar.gz *.zip | sort) \
-  <(awk '{print $2}' MANIFEST.sha256 | sort))"
+  <(awk '{print $2}' "$LOCK_MANIFEST" | sort))"
 [ -z "$UNEXPECTED" ] || die "wheelhouse has files not in MANIFEST.sha256 — refusing: $UNEXPECTED"
 
-[ -e "$VENV" ] && die "$VENV already exists — remove it by hand to rebuild deliberately"
-info "creating $VENV with $("$PY" --version 2>&1)"
-"$PY" -m venv "$VENV"
+{ [ -e "$VENV" ] || [ -L "$VENV" ]; } && die "$VENV already exists — remove it by hand to rebuild deliberately"
+info "creating $VENV with $(clean_python "$PY" -I --version 2>&1)"
+mkdir "$VENV" || die "$VENV already exists or cannot be created"
+clean_python "$PY" -I -m venv "$VENV"
 VPY="$VENV/bin/python"
 [ -x "$VPY" ] || die "venv created but $VPY missing"
 
-info "installing requirements.txt (--no-index, wheelhouse only)"
-"$VPY" -m pip install --no-index --find-links "$WH" --disable-pip-version-check \
-  -r "$REPO_ROOT/requirements.txt"
+info "installing requirements.txt + requirements-build.txt (--no-index, wheelhouse only)"
+clean_python "$PY" -I "$LOCK_PY" --manifest "$LOCK_MANIFEST" \
+  "$REPO_ROOT/requirements.txt" "$REPO_ROOT/requirements-build.txt" > "$LOCK_DIR/requirements-offline.lock" \
+  || die "requirements contain unsupported pins or options"
+clean_python "$VPY" -I -m pip --isolated install --no-index --no-deps --no-cache-dir --only-binary=:all: \
+  --require-hashes --find-links "$WH" --disable-pip-version-check -r "$LOCK_DIR/requirements-offline.lock"
 
 # CUDA runtime wheels (parsed from setup.py — same pins setup installs). An
 # empty parse must fail closed: silently skipping means a venv WITHOUT the
@@ -88,9 +105,20 @@ case "$CUDA" in
 esac
 if [ "${#WHEELS[@]}" -gt 0 ]; then
   info "installing CUDA runtime wheels (--cuda $CUDA): ${WHEELS[*]}"
-  "$VPY" -m pip install --no-index --find-links "$WH" --disable-pip-version-check "${WHEELS[@]}"
+  printf '%s\n' "${WHEELS[@]}" | clean_python "$PY" -I "$LOCK_PY" --manifest "$LOCK_MANIFEST" \
+    > "$LOCK_DIR/requirements-cuda-offline.lock" || die "CUDA requirements contain unsupported pins"
+  clean_python "$VPY" -I -m pip --isolated install --no-index --no-deps --no-cache-dir --only-binary=:all: \
+    --require-hashes --find-links "$WH" --disable-pip-version-check -r "$LOCK_DIR/requirements-cuda-offline.lock"
 fi
 
+info "checking installed dependency metadata without resolving or fetching"
+clean_python "$VPY" -I -m pip --isolated check || die "installed dependencies are incomplete or incompatible"
 info "done. Smoke check:"
-"$VPY" -c "import numpy, jinja2, requests, yaml, tqdm, PIL, psutil, regex; print('  imports ok:', numpy.__version__, jinja2.__version__, requests.__version__)"
+clean_python "$VPY" -I -c "import numpy, jinja2, requests, yaml, tqdm, PIL, psutil, regex; print('  imports ok:', numpy.__version__, jinja2.__version__, requests.__version__)"
+cp "$LOCK_MANIFEST" "$VENV/wheelhouse-manifest.sha256"
+cp "$LOCK_DIR/requirements-offline.lock" "$VENV/requirements-offline.lock"
+if [ -f "$LOCK_DIR/requirements-cuda-offline.lock" ]; then
+  cp "$LOCK_DIR/requirements-cuda-offline.lock" "$VENV/requirements-cuda-offline.lock"
+fi
+info "private installation evidence kept at $LOCK_DIR"
 info "venv at $VENV"

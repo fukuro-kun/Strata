@@ -5,6 +5,52 @@ Kanonischer Build-Einstieg dieses Forks. **Niemals** `setup.py`, `setup.sh`,
 Pfade laufen komplett offline; Beschaffung ist ein separater, dokumentierter
 Schritt.
 
+**Acquisition-Gate (Fork):** Upstreams Terminal-/App-Primitiven (Download,
+Update, Launch-Acquisition, pip, Compile) laufen allesamt über
+`strata_control/acquisition.require()`. Der Fork verweigert jede davon per
+Default (`ForkAcquisitionRefused`, Exit 5) — Ausnahme nur für bewusst
+reviewte Beschaffung mit `STRATA_FORK_ALLOW_ACQUIRE=1` (exakter String),
+niemals produktiv. `STRATA_NO_ACQUIRE` und der `forbidden()`-Kontext
+gewinnen immer. `run_server.sh` exportiert `STRATA_NO_ACQUIRE=1` und
+`STRATA_NO_HANDOVER=1`.
+
+Das Gate gilt auch für eine **lokale Paketinstallation**
+(`updater.install_engine_file`, das explizite CLI-Paket): ein signiertes
+Upstream-Engine-Paket auf Disk ist trotzdem Beschaffung — die Signatur
+prüft Integrität, keine Freigabe. Die Fork-Build-Skripte
+(`tools/offline/…`) bleiben davon separat: sie sind Shell-Verträge
+außerhalb der Python-Umgebung und laufen ohne das Env-Gate.
+Die Offline-Skripte `fetch_llamacpp.sh` / `fetch_wheels.sh` bleiben der
+dokumentierte Beschaffungspfad; sie nutzen keine Terminal-Download-Primitiven.
+Der DSV41-Pfad folgt demselben Gate: lokale Paketinstallation,
+Remote-Download/Upgrade und die Remote-Erreichbarkeitsprobe laufen ueber
+`acquisition.require()`; die lokale Read-Only-Probe (existierende Datei/Ordner)
+bleibt davon frei. Der MCP-Modellinstaller und sein Hintergrundjob
+brauchen vor State-/Spec-/Venv-Zugriff dasselbe Gate; `STRATA_NO_ACQUIRE`
+wird fuer Control-Kinder nicht mehr entfernt — Allow ueberstimmt den
+Stopp weiterhin nicht. Auch die CUDA-12-Treiberfloor-Abfrage
+(`driver_floor.from_feed`) liest den signierten Feed nur noch nach dem
+Gate; installierte lokale Metadaten und der konstante Fallback brauchen
+kein Allow.
+
+Die Windows-HIP-Geraeteprobe `hip_devices` repariert den Engine-Ordner
+nicht mehr nebenbei. Die explizite Installationspruefung `hip_card`
+kopiert die benoetigten lokalen Runtime-DLLs weiterhin vor der Probe.
+Das ist kein Beleg, dass die gesamte Terminal-Planung schreibfrei ist;
+andere Settings-/Datei-Nebenwirkungen werden getrennt geprueft.
+
+Auch die direkten Metal-Buildhelfer pruefen vor Build-Vorbereitungen
+das Beschaffungs-Gate. Beim SYCL-Bildleser liegt es bereits vor dem
+Laden der oneAPI-Umgebung. Gueltige vorhandene Backend-Artefakte koennen
+ohne Neubau weiterverwendet werden. Die Backend-Einstiege melden eine
+Beschaffungsverweigerung mit Exit 5 statt einem Traceback.
+
+Der eigenstaendige Helfer `tools/mtp_fetch.py` prueft Metadaten- und
+Tensorbeschaffung ebenfalls am Fork-Gate, auch bei direktem CLI-Aufruf.
+Sein `verify` bleibt offline ohne Allow nutzbar; er kann dabei den
+lokalen Verifikationscache schreiben. Der Root-Setup-Aufruf war schon
+vor dieser Absicherung durch dessen `run`-Gate geschuetzt.
+
 ## Prinzip
 
 1. **Beschaffung** (einmalig, bewusst, dokumentiert): `tools/offline/fetch_llamacpp.sh`
@@ -73,7 +119,7 @@ Die Server-/Toolchain-Python-Deps laufen aus einem lokalen Wheelhouse —
 tools/offline/fetch_wheels.sh                      # für dieses Python
 tools/offline/fetch_wheels.sh --for-python 3.12    # für ein anderes (binary-only)
 
-# venv aus dem Wheelhouse (offline, --no-index = fail closed):
+# venv aus dem geprueften Wheelhouse:
 tools/offline/make_venv.sh                         # CUDA-Wheels auto nach nvcc
 tools/offline/make_venv.sh --cuda 12|none          # oder explizit
 
@@ -88,10 +134,32 @@ python3 tools/offline/make_config.py NAME --pack DIR --native GGUF ...
 
 - `wheelhouse/*.whl` sind gitignored (LAN-Kopie via rsync/Netzlaufwerk);
   `wheelhouse/MANIFEST.sha256` ist committed — `make_venv.sh` verifiziert das
-  Wheelhouse dagegen **vor** jeder Installation.
-- requirements.txt-Pins **und** die CUDA-Laufzeit-Wheels (`nvidia-cublas`/
-  `nvidia-cuda-runtime`, cu13 und cu12) werden aus `setup.py` gelesen —
-  eine Pin-Quelle.
+  Wheelhouse gegen eine private Kopie des Manifests **vor** der Installation.
+  Eine daraus erzeugte Pin-/Hashliste bindet jedes installierte Wheel auch
+  bei der Installation an diese Kopie. Nicht aufgefuehrte Archive und
+  manipulierte Wheels werden abgelehnt.
+- Python laeuft mit bereinigter Umgebung und `-I`; pip nutzt `--isolated`,
+  `--no-index`, `--no-deps`, `--only-binary` und `--require-hashes`.
+  Direkte URLs, weitere Quellen und nicht exakt gepinnte Requirements
+  werden abgelehnt. Nach Installation prueft `pip check` die vorhandenen
+  Abhaengigkeiten, ohne weitere Pakete aufzulösen oder nachzuladen.
+- Der Lock-Generator akzeptiert nur feste `==`-Pins und die derzeit
+  verwendeten einfachen `python_version`-/`sys_platform`-Marker.
+  Andere Requirements-Syntax muss vor einer Erweiterung geprueft werden.
+  Die kleinen Manifest- und Lockdateien bleiben als Installationsnachweis
+  in einem privaten Temporaerverzeichnis und nach Erfolg auch in der Venv;
+  sie werden weder als `PYTHONPATH` noch als ausfuehrbarer Code verwendet.
+- Das Manifest, die Requirements, Python, `ensurepip`/pip und die
+  Systembibliotheken sind Vertrauensanker. Hashgleichheit beweist nicht
+  deren Herkunft; gepruefte, vor gleichzeitigen Schreibzugriffen
+  geschuetzte Inputs und eine isolierte Testumgebung bleiben erforderlich.
+  Eine Venv und `--no-index` sind keine Netzwerk-Sandbox.
+- Die Python-Pins stehen in `requirements.txt` und
+  `requirements-build.txt`; die CUDA-Laufzeit-Pins (`nvidia-cublas`/
+  `nvidia-cuda-runtime`, cu13 und cu12) liest das Skript aus `setup.py`,
+  ohne dessen Installer zu starten. Auto-Erkennung sucht `nvcc` nur auf
+  dem begrenzten Werkzeugpfad; bei anderem CUDA-Installationsort
+  `--cuda 12` oder `--cuda 13` ausdruecklich setzen.
 - `run_server.sh` validiert die Config (exe existiert, Datei-Flags in args
   wie `--pack`/`--native`/`--mtp` geprüft — `--mtp <n>` für own-path-Modelle
   wird korrekt übersprungen, tokenizer mit vocab/merges/token_type) und

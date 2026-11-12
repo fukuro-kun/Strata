@@ -5,6 +5,7 @@ so, with the nvidia-smi check, instead of only the first line of the encoder's o
 """
 import io
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -42,7 +43,8 @@ class Busy(unittest.TestCase):
         v = server.Vision.__new__(server.Vision)
         v.spawn = (["strata-vision"], None, None)
         v.dir = Path(tempfile.gettempdir())
-        with mock.patch.object(server, "popen", lambda *a, **k: proc), mock.patch.object(server, "contain"):
+        v.lock, v.cache = threading.Lock(), {}
+        with mock.patch.object(server, "popen", lambda *a, **k: proc):
             with self.assertRaises(RuntimeError) as cm:
                 v._start()
         self.assertIn("Exclusive_Process", str(cm.exception))

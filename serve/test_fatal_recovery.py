@@ -1,18 +1,22 @@
 """Real pipe/process protocol regression for a native ERR that leaves its process alive."""
 import os
+import contextlib
+import io
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import threading
 import time
 import unittest
 import json
+import urllib.error
 import urllib.request
 from serve.server import StrataEngine, Service, ChatTemplate, EngineDied, serve
 from serve.test_server import ByteTokenizer
 
 FAKE=r'''
-import sys
+import sys, time
 from pathlib import Path
 state=Path(sys.argv[sys.argv.index('--state')+1])
 mode=sys.argv[sys.argv.index('--mode')+1]
@@ -23,6 +27,13 @@ for line in sys.stdin:
   if not state.exists():
    state.write_text('first request was attempted')
    if mode=='invalid':print('ERR prompt exceeds context',flush=True)
+   elif mode=='healthy':
+    for i in range(512):print(f'T {97+i%26}',flush=True)
+    print('DONE 512 1 1 1 length 0 0 0',flush=True)
+   elif mode=='external':
+    for i in range(432):print(f'T {97+i%26}',flush=True)
+    state.with_suffix('.ready').write_text('tokens sent')
+    while True:time.sleep(1)
    else:
     kind='verify batch' if mode=='batch' else 'verify'
     print(f'ERR {kind}: timed out at layer 18; its GPU waits were released and the GPU finished (#267)',flush=True)
@@ -53,7 +64,9 @@ class FatalRecovery(unittest.TestCase):
         return list(svc.run([1],False,[],8,{},threading.Event()))
     def test_fatal_error_is_not_a_success_and_next_request_reloads(self):
         e=self.engine();svc=self.service(e)
-        with self.assertRaises(EngineDied):self.run_request(svc)
+        with contextlib.redirect_stdout(io.StringIO()) as said:
+            with self.assertRaises(EngineDied):self.run_request(svc)
+        self.assertIn('Unrecoverable native verification failure',said.getvalue())
         self.wait_dead(e)
         self.assertIs(svc.engine,e,'the failed request must not be retried automatically')
         self.assertEqual(svc.history[-1]['finish'],'error')
@@ -113,4 +126,59 @@ class FatalRecovery(unittest.TestCase):
     def test_closed_serial_engine_rejects_without_accessing_closed_pipe(self):
         e=self.engine();e.close()
         with self.assertRaises(EngineDied):list(e.generate([1],8,{},threading.Event()))
+
+    def test_healthy_nonstreamed_request_completes_512_tokens(self):
+        e=self.engine('healthy');svc=self.service(e)
+        http=serve(svc,port=0)
+        self.addCleanup(http.server_close)
+        self.addCleanup(http.shutdown)
+        body={'messages':[{'role':'user','content':'hi'}],'max_tokens':512,
+              'chat_template_kwargs':{'enable_thinking':False},'stream':False}
+        req=urllib.request.Request(f'http://127.0.0.1:{http.server_address[1]}/v1/chat/completions',
+                                   data=json.dumps(body).encode(),headers={'Content-Type':'application/json'})
+        with urllib.request.urlopen(req,timeout=10) as r:
+            data=json.load(r)
+        self.assertEqual(data['choices'][0]['finish_reason'],'length')
+        self.assertEqual(data['usage']['completion_tokens'],512)
+        self.assertEqual(svc.client_disconnect_cancels,0)
+        self.assertTrue(e.alive())
+
+    @unittest.skipIf(os.name == 'nt', 'POSIX signal exit codes')
+    def test_external_sigterm_during_nonstreamed_request(self):
+        e=self.engine('external');svc=self.service(e)
+        http=serve(svc,port=0)
+        self.addCleanup(http.server_close)
+        self.addCleanup(http.shutdown)
+        body={'messages':[{'role':'user','content':'hi'}],'max_tokens':512,
+              'chat_template_kwargs':{'enable_thinking':False},'stream':False}
+        req=urllib.request.Request(f'http://127.0.0.1:{http.server_address[1]}/v1/chat/completions',
+                                   data=json.dumps(body).encode(),headers={'Content-Type':'application/json'})
+        result=[]
+        def post():
+            try:
+                with urllib.request.urlopen(req,timeout=10) as r:
+                    result.append((r.status,json.load(r)))
+            except urllib.error.HTTPError as exc:
+                with exc:
+                    result.append((exc.code,json.load(exc)))
+        with contextlib.redirect_stdout(io.StringIO()) as said:
+            client=threading.Thread(target=post,daemon=True);client.start()
+            deadline=time.monotonic()+5
+            while not (self.root/'state.ready').exists() and time.monotonic()<deadline:
+                time.sleep(.01)
+            self.assertTrue((self.root/'state.ready').exists(),'fake engine did not reach the signal point')
+            self.assertIsNone(e.proc.poll())
+            sender=subprocess.run([sys.executable,'-I','-c',
+                'import os,signal,sys; os.kill(int(sys.argv[1]),signal.SIGTERM); print(os.getpid())',
+                str(e.proc.pid)],check=True,capture_output=True,text=True,timeout=5)
+            self.assertNotIn(int(sender.stdout),(os.getpid(),e.proc.pid))
+            client.join(10)
+        self.assertFalse(client.is_alive())
+        self.assertEqual(result[0][0],503)
+        self.assertIn('exit code -15',result[0][1]['error']['message'])
+        self.assertEqual(svc.history[-1]['finish'],'error')
+        self.assertEqual(svc.history[-1]['output_tokens'],432)
+        self.assertEqual(svc.client_disconnect_cancels,0)
+        self.assertIn('SIGTERM',said.getvalue())
+        self.assertNotIn('running out of RAM',said.getvalue())
 if __name__=='__main__':unittest.main()

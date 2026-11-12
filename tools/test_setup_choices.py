@@ -56,6 +56,47 @@ class PrebuiltVision(unittest.TestCase):
         self.assertEqual(quiet(setup.prebuilt_vision, {"archs": [75, 86]}, {"arch": 75}, "gpu")[0], "gpu")
 
 
+class VisionArchsAsAString(unittest.TestCase):
+    """#3810: the packaging recipes write BUILD.json `vision_archs` as ONE string ("75;86;89;120"); 0.2.3 iterated it character by
+    character and setup stopped with int(';') on the released Windows CUDA package.  A string and a list mean the same."""
+    RELEASED = {"version": "0.2.3", "archs": [75, 86, 89, 120], "ptx": True, "cuda": "13.0", "vision": "gpu-cuda13",
+                "vision_archs": "75;86;89;120", "portable": True}
+
+    def test_the_released_package_manifest_is_read(self):
+        for arch in (75, 86, 89, 120):
+            self.assertEqual(quiet(setup.prebuilt_vision, self.RELEASED, {"arch": arch}, "gpu")[0], "gpu")
+
+    def test_a_card_the_string_does_not_list_gets_the_cpu_reader(self):
+        meta = {**self.RELEASED, "vision_archs": "86;89;120", "ptx": False}
+        got, out = quiet(setup.prebuilt_vision, meta, {"arch": 75}, "gpu")
+        self.assertEqual(got, "cpu")
+        self.assertIn("runs on the CPU instead", out)
+        self.assertEqual(quiet(setup.prebuilt_vision, {**meta, "ptx": True}, {"arch": 120}, "gpu")[0], "gpu")
+
+    def test_a_string_and_a_list_agree(self):
+        for value in ("75;86;89;120", [75, 86, 89, 120], ["sm_75", "86-real", "89", "compute_120"], "75,86 89;120"):
+            self.assertEqual(setup.arch_numbers(value), [75, 86, 89, 120], value)
+        self.assertEqual(setup.arch_numbers(None), [])
+        self.assertEqual(setup.arch_numbers(""), [])
+        self.assertEqual(setup.arch_names("gfx1100;gfx1201"), ["gfx1100", "gfx1201"])
+        self.assertEqual(setup.arch_names(["gfx1100"]), ["gfx1100"])
+        self.assertEqual(setup.arch_names(None), [])
+
+    def test_the_other_readers_of_the_manifest_take_a_string_too(self):
+        import tempfile
+        from pathlib import Path
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "BUILD.json").write_text('{"archs": "60;61;70", "ptx": true}', encoding="utf-8")
+            with mock.patch.object(setup, "engine_dir", return_value=Path(d)):
+                self.assertEqual(setup.engine_archs(), ([60, 61, 70], True))
+            (Path(d) / "BUILD.json").write_text('{"backend": "hip", "archs": ["gfx1100"], "vision_archs": "gfx1100;gfx1201"}', encoding="utf-8")
+            self.assertEqual(setup.reader_archs(Path(d)), ["gfx1100", "gfx1201"])
+            (Path(d) / "BUILD.json").write_text('{"backend": "hip", "archs": ["gfx1100", "gfx1201"]}', encoding="utf-8")
+            self.assertEqual(setup.reader_archs(Path(d)), ["gfx1100", "gfx1201"])
+        self.assertEqual(setup.reader_archs(Path(__file__).parent / "no-such-folder"), [])
+
+
 class GgufDirShards(unittest.TestCase):
     """#305: --gguf-dir reads the shard count from the -of-N part of the name instead of assuming two."""
 
@@ -195,10 +236,10 @@ class VsRange(unittest.TestCase):
 
     def test_the_range_follows_the_toolkit(self):
         self.assertIsNone(self.asked(None))      # #881: without CUDA vswhere gets no version range
-        self.assertEqual(self.asked((13, 0)), "[16.0,18.0)")
-        self.assertEqual(self.asked((13, 2)), "[16.0,18.0)")
-        self.assertEqual(self.asked((13, 3)), "[16.0,19.0)")
-        self.assertEqual(self.asked((14, 0)), "[16.0,19.0)")
+        self.assertEqual(self.asked((13, 0)), "[17.0,18.0)")
+        self.assertEqual(self.asked((13, 2)), "[17.0,18.0)")
+        self.assertEqual(self.asked((13, 3)), "[17.0,19.0)")
+        self.assertEqual(self.asked((14, 0)), "[17.0,19.0)")
 
 
     def test_vcvars_by_hand(self):
@@ -215,6 +256,11 @@ class VsRange(unittest.TestCase):
 class ExperimentalSm60(unittest.TestCase):
     """#295: Pascal (6.x) and Volta (7.0) only with STRATA_EXPERIMENTAL_SM60=1, built with -DSTRATA_EXPERIMENTAL_SM60=ON
     and a CUDA 12.x toolkit; nothing changes without the variable."""
+
+    def setUp(self):
+        p = mock.patch.dict(setup.os.environ, {"STRATA_FORK_ALLOW_ACQUIRE": "1"})
+        p.start()
+        self.addCleanup(p.stop)
 
     def card(self, arch):
         return {"arch": arch, "vram_gb": 11.0, "index": 0, "name": "card"}
@@ -318,15 +364,18 @@ class ExperimentalSm60(unittest.TestCase):
 class HipVision(unittest.TestCase):
     """#304: --vision cpu with --backend hip builds the CPU image encoder beside the HIP engine."""
 
-    @mock.patch.object(setup, "WIN", False)            # Linux: compiled here (Windows has no AMD image encoder yet)
+    def setUp(self):
+        p = mock.patch.dict(setup.os.environ, {"STRATA_FORK_ALLOW_ACQUIRE": "1"})
+        p.start()
+        self.addCleanup(p.stop)
+
+    @mock.patch.object(setup, "WIN", False)
     def test_the_choice(self):
         self.assertEqual(quiet(setup.hip_vision, "cpu"), ("cpu", ""))
-        for asked in (None, "no", "none"):
+        for asked in ("no", "none"):
             self.assertEqual(quiet(setup.hip_vision, asked), ("none", ""))
-        for asked in ("yes", "gpu"):
-            got, out = quiet(setup.hip_vision, asked)
-            self.assertEqual(got, "none")
-            self.assertIn("--vision cpu", out)
+        for asked in (None, "yes", "gpu"):            # pictures are on by default; the engine folder's readers settle gpu vs cpu
+            self.assertEqual(quiet(setup.hip_vision, asked), ("gpu", ""))
 
     def build(self, meta, vision, vexe=False):
         """build_engine_hip with an engine that is already built: only the encoder can be missing."""
@@ -371,11 +420,17 @@ class HipVision(unittest.TestCase):
 class RotationalDisk(unittest.TestCase):
     """#605: a model on a rotational disk gets --ple-io ram when the n-gram table fits the RAM, else a warning."""
 
-    def install(self, ram, disk):
+    def setUp(self):
+        p = mock.patch.dict(setup.os.environ, {"STRATA_FORK_ALLOW_ACQUIRE": "1"})
+        p.start()
+        self.addCleanup(p.stop)
+
+    def install(self, ram, disk, platform_ok=False, model="Q2_0"):
         from test_setup_golden import PROFILES, install
         _, found = PROFILES["64GB-1x32GB"]
-        return install(ram, found, ["--family", "qwen", "--model", "Q2_0", "--no-start"],
-                       extra=[mock.patch.object(setup, "rotational_disk", lambda p: disk)])
+        return install(ram, found, ["--family", "qwen", "--model", model, "--no-start"],
+                       extra=[mock.patch.object(setup, "rotational_disk", lambda p: disk),
+                              mock.patch.object(setup, "ple_ram_platform_ok", lambda: platform_ok)])
 
     def test_fits(self):
         code, out, cfg, _ = self.install(127.8, "sdb")
@@ -394,6 +449,29 @@ class RotationalDisk(unittest.TestCase):
         code, out, cfg, _ = self.install(127.8, None)
         self.assertNotIn("--ple-io", cfg["args"])
         self.assertNotIn("rotational", out)
+
+    def test_ssd_ram_to_spare(self):
+        # 147-verify (Linux): an SSD and RAM beyond the model's need + the table + 16 GB: the table in RAM too
+        code, out, cfg, _ = self.install(127.8, None, platform_ok=True)
+        self.assertEqual(code, 0, out)
+        a = cfg["args"]
+        self.assertEqual(a[a.index("--ple-io") + 1], "ram")
+        self.assertIn("kept in RAM (--ple-io ram)", out)
+        self.assertNotIn("rotational", out)
+
+    def test_ssd_little_ram_keeps_the_ssd(self):
+        # Q2_0 needs 48 GB + the 28.8 GB table + 16: a 64 GB / 92 GB PC keeps the SSD reads
+        for ram in (63.7, 92.0):
+            code, out, cfg, _ = self.install(ram, None, platform_ok=True)
+            self.assertEqual(code, 0, out)
+            self.assertNotIn("--ple-io", cfg["args"])
+
+    def test_ssd_ram_rule_follows_the_model(self):
+        # IQ3_S needs 62 GB: 96 GB is not enough to spare the table, 128 GB is
+        for ram, want in ((95.8, False), (127.8, True)):
+            code, out, cfg, _ = self.install(ram, None, platform_ok=True, model="IQ3_S")
+            self.assertEqual(code, 0, out)
+            self.assertEqual("--ple-io" in cfg["args"], want, (ram, cfg["args"]))
 
     def test_sysfs(self):
         if not sys.platform.startswith("linux"):
@@ -421,8 +499,12 @@ class VramReserve(unittest.TestCase):
         self.assertEqual(a.count("--vram-reserve-mib"), 1)
         self.assertEqual(a[a.index("--vram-reserve-mib") + 1], "2048")
         self.assertIn("VRAM kept free for other programs: 2048 MiB", out)
-        code, out, cfg, _ = self.install()
+        code, out, cfg, _ = self.install("--vision", "no")
         self.assertNotIn("--vram-reserve-mib", cfg["args"])          # not given: the engine's default, as before
+        code, out, cfg, _ = self.install("--vision", "cpu")
+        self.assertNotIn("--vram-reserve-mib", cfg["args"])          # the CPU reader needs no reserve
+        code, out, cfg, _ = self.install()
+        self.assertEqual(cfg["args"][cfg["args"].index("--vram-reserve-mib") + 1], "700")   # pictures on by default, GPU reader on a 32 GB card: its 700 MiB
 
     def test_with_images_one_value(self):
         code, out, cfg, _ = self.install("--vision", "cpu", "--vram-reserve-mib", "1500")
@@ -524,6 +606,11 @@ class DesktopReserveTip(unittest.TestCase):
 class CudaVision(unittest.TestCase):
     """#411: the image encoder setup compiles beside the CUDA engine is built for this PC, not portable."""
 
+    def setUp(self):
+        p = mock.patch.dict(setup.os.environ, {"STRATA_FORK_ALLOW_ACQUIRE": "1"})
+        p.start()
+        self.addCleanup(p.stop)
+
     def test_the_encoder_is_built_native(self):
         for vision in ("gpu", "cpu"):
             with self.subTest(vision), tempfile.TemporaryDirectory() as d:
@@ -568,6 +655,11 @@ class HostCompilers(unittest.TestCase):
     """#1645: CC / CXX / CUDAHOSTCXX name the build's compilers - handed to CMake as -D, so a build folder that is
     already configured picks them up too (CXX alone reaches CMake only on the first configure: the reporter's
     `CXX=g++-14` run died at the last step).  CUDAHOSTCXX is nvcc's host compiler and defaults to CXX."""
+
+    def setUp(self):
+        p = mock.patch.dict(setup.os.environ, {"STRATA_FORK_ALLOW_ACQUIRE": "1"})
+        p.start()
+        self.addCleanup(p.stop)
 
     def test_env_names_the_compilers(self):
         with mock.patch.dict(os.environ, {"CC": "gcc-14", "CXX": "g++-14", "CUDAHOSTCXX": "g++-14-alt"}):
@@ -634,7 +726,7 @@ class CalibrateWithModel(unittest.TestCase):
                 mock.patch.object(setup, "update_installed_engine", lambda *a, **k: None), \
                 mock.patch.object(setup, "calibrate_config", lambda c: tuned.append(c.name) or True), \
                 mock.patch.object(setup, "start", lambda *a, **k: 0), \
-                mock.patch.object(setup, "data_folder", lambda d: (Path(tmp.name), [])), \
+                mock.patch.object(setup, "data_folder", lambda d, *a, **k: (Path(tmp.name), [])), \
                 mock.patch.object(setup, "step", side_effect=SystemExit("reached the plain setup")):
             try:
                 code, out = quiet(setup.main)

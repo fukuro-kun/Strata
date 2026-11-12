@@ -18,6 +18,12 @@
 
 set -euo pipefail
 
+# FORK POLICY: serving never acquires. Refuse every download/install/update
+# primitive even when a caller inherited a broad STRATA_FORK_ALLOW_ACQUIRE=1;
+# STRATA_NO_HANDOVER keeps the corrected env name (strata_cli/handover.py ENV_OFF).
+export STRATA_NO_ACQUIRE=1
+export STRATA_NO_HANDOVER=1
+
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 VPY="$REPO_ROOT/.venv-offline/bin/python"
 

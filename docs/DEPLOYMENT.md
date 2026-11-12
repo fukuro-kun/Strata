@@ -17,6 +17,9 @@ Upstream-Checkout (`~/git/strata`) und schon gar nicht über
 - Dienst-Start immer über `<deploy-root>/current/run.sh` bzw.
   `tools/offline/run_server.sh` — nie direkt `.venv/bin/python
   serve/server.py` aus einem unbearbeiteten Checkout.
+  `run_server.sh` exportiert `STRATA_NO_ACQUIRE=1` + `STRATA_NO_HANDOVER=1`:
+  der Dienst kann unter keinem vererbten Env irgendwelche Download-/Update-
+  Primitive auslösen (Acquisition-Gate, `docs/OFFLINE_BUILD.md`).
 - Configs mit Host-Pfad auf den Fork zeigen als `*.fork.json` unter
   `~/strata-fork-configs/` (host-lokal, nicht committed — enthalten
   private Pfade).
@@ -118,3 +121,17 @@ curl -s 127.0.0.1:8080/slots | head
 
 Vor dem ersten produktiven Start eines Hosts einmalig das Rollback
 real üben (deploy → rollback → redeploy).
+
+## Engine-Auto-Recovery — Freigabe-Scope (Stand 2026-10-31)
+
+Die Opt-in-Config `"engine_auto_restart": true` (Default `false`, siehe
+`docs/DETAILS.md`) ist per User-Freigabe **nur fuer den in `LOKAL.md`
+benannten Produktionshost** zum gezielten
+Rollout zugelassen — einschließlich Neustart der dortigen User-Unit und
+einem kontrollierten Test, der **ausschließlich** den laufenden
+Engine-Kindprozess bei freiem Slot gezielt beendet (kein Unit-Kill, kein
+fremder Prozess). Andere Hosts sind **nicht** freigegeben: deren `*.fork.json`-Configs
+und Ressourcen-Tuning bleiben unverändert. **Stand 2026-10-31: auf dem
+freigegebenen Produktionshost deployt und live abgenommen** — kontrollierter
+Kindtod → autonomer Watchdog-Neustart beginnt nach 0,94 s, Engine ready 17,7 s,
+wartender Request mit 200 bedient; Deploy-IDs und Pfade nur in `LOKAL.md`.
