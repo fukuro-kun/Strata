@@ -93,6 +93,50 @@ zurückgeschwenkt. Der Dienst wird per Default neu gestartet.
   `venv.pip_freeze_sha256`, und Verify meldet einen neu gebauten venv
   als Drift.
 
+## Produktionsstand-Invarianten (festgelegt 2026-11-14)
+
+Produktion besteht aus **zwei getrennt gepinnten Schichten**:
+
+1. **Python-Server + Tools** aus dem dedizierten Produktiv-Checkout
+   (pro Host in `LOKAL.md` benannt — detached HEAD, kein beweglicher
+   Branch, niemals ein Kandidaten-Worktree).
+2. **Engine-Binaries + Config** aus `~/strata-deploy/current`
+   (versioniertes Deploy-Dir, `MANIFEST.json` nagelt `fork_sha`,
+   `llama_cpp.commit/.strata-pin` und Artefakt-SHA256 fest).
+
+**Kanonischer Zustand — alle drei Zeiger zeigen denselben Commit:**
+
+    git rev-parse HEAD            (Produktiv-Checkout)
+    == manifest.fork_sha          (~/strata-deploy/current/MANIFEST.json)
+    == origin/main                (kanonischer Fork-Stand auf europa)
+
+Ausnahme ist nur ein dokumentiertes Kandidaten-Fenster: dann zeigt
+`fork_sha` den Kandidaten-Commit, nie einen uncommitteten Baum.
+
+**Regeln:**
+
+- `git checkout` allein ändert **nichts** am Laufenden — genauso wenig
+  verschiebt ein Deploy-Stage den Checkout. Beides gehört zusammen:
+  Checkout auf den Ziel-Commit setzen, dann `deploy_local.sh`, dann
+  bewusster Service-Restart.
+- **Deploys nur aus dem Produktiv-Checkout.** Die generierte `run.sh`
+  pinnnt den Checkout-Pfad, aus dem sie erzeugt wurde — ein Deploy aus
+  einem Worktree macht die Produktion von diesem Worktree abhängig
+  (Vorfall eris 2026-11-14: Server lief aus `Strata-cand-mmq`, behoben
+  durch Redeploy aus `strata-fork-sync`).
+- Isolation bleibt: Binaries stammen ausschließlich aus lokal gebauten,
+  reviewten Fork-Bäumen; `deploy_local.sh`/`make_manifest.py` prüfen
+  ggml-Pin, Dirty-Tree und Artefakt-Hashes fail-closed.
+
+**Statusabfrage (pro Host):**
+
+```bash
+git -C <produktiv-checkout> rev-parse HEAD
+python3 -c 'import json; print(json.load(open("~/strata-deploy/current/MANIFEST.json"))["fork_sha"])'
+readlink ~/strata-deploy/current
+readlink /proc/$(pgrep -f "strata --serve" | head -1)/exe   # laufende Binary
+```
+
 ## systemd-Varianten
 
 Default ist `systemd --user` (kein sudo). System-Units (produktiv, mit
