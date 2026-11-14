@@ -51,8 +51,33 @@ Rollout sind nicht Teil dieses Auftrags.
 - eris laeuft auf dem Kandidaten (`eris-strata.service`, `current` ->
   `f64b0f8f-...`); Rollback = `previous`-Symlink zurueck + Restart.
 - uranus bleibt unveraendert auf `7d58d42c`.
-- Offen vor Promotion auf `main`: HIP-Lauf, SYCL-Folgeaufgabe,
-  A/B-Leistungsvergleich, Rollback-Uebung, Freigabe.
+
+## Gate-Block 2026-11-14 abends — erledigt
+
+- **Rollback-Uebung:** `current` -> `previous` (22c64d47-Deploy),
+  Restart, Health+Smoke ok; Rueckflip auf Kandidat, Restart, ok.
+  Rollback-Pfad live abgenommen.
+- **A/B-Probe (reduzierter Umfang):** Baseline- vs Kandidaten-Engine
+  auf eris, cold-prefill-Probes mit Unique-Nonce: Kurz 490pt median
+  2785 vs 2851 ms (+2,4 %, in Streuung) → **NO_SIGNAL**; Lang-Probes
+  Expert-Cache-rauschend. Kein Geschwindigkeitsgewinn erwartbar —
+  Sicherheitsfix.
+- **SYCL-Folgeaufgabe:** Port aller Spiegelstellen committed;
+  unabhaengiges Review (review-swe) fand 1 P1 (fehlender
+  Early-Guard in `carve`, behoben) + P3-Nachzuege (hc<=0, Kommentar,
+  cstdint) → ship-ready. Befund: SYCL-MMQ ist heute toter Code
+  (`STRATA_PREFILL_MMQ` undefiniert, `moe_mmq.dp.cpp` nicht in den
+  Quellen) — Port ist Paritaets-Vorbereitung. Kein icpx/dpcpp →
+  Build-Gate offen.
+- **HIP-Gate:** formal geschlossen als "nicht verfuegbar" — keine
+  HIP-Toolchain im LAN (alle Hosts geprueft).
+- **Toolchain-Fakten:** eris CUDA 12.4 → zwingend g++-13; uranus
+  PATH-nvcc 12.0 ist irrefuehrend — installiert 13.0/13.2, produktiv
+  mit 13.0 (sm_89) gebaut; Uranus-Builds muessen den Toolkit-Pfad
+  explizit waehlen. Folgepunkt: `build_engine.sh` soll nvcc→Host-
+  Compiler pruefen und fail-closed abbrechen.
+- Verbleibend vor Promotion auf `main`: Nutzer-Freigabe, dann
+  Promotion + uranus-Rollout.
 
 ## Test- und Fehlerstrategie
 
