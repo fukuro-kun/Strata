@@ -129,6 +129,18 @@ fordert keinen pauschalen Clean-Verdict fuer die gesamte Git-Historie.
    dokumentierter Schritt. Ein `llama.cpp`-Pin-Wechsel ist nie "nur ein
    Detail": der Pin ist Engine-Input und wandert ins P3-Manifest.
 
+### Backend-Abdeckung der Gates (Stand 2026-11-14)
+
+Im LAN steht **keine HIP-Hardware und keine HIP-Toolchain** zur
+Verfuegung (verifiziert auf allen Hosts). HIP ist daher **kein
+Standard-Pruefgate**: HIP-Aenderungen werden statisch gereviewt und als
+ungeprueft markiert; ein HIP-Lauf ist weder moeglich noch erforderlich.
+Gleiches gilt fuer SYCL: kein `icpx`/`dpcpp` vorhanden, der SYCL-MMQ-
+Pfad ist im Build zudem toter Code — SYCL-Aenderungen erhalten
+statisches Review, das Build-/Lauf-Gate bleibt dokumentiert offen.
+Erst wenn HIP- oder SYCL-faehige Hardware/Toolchains ins LAN kommen,
+werden die entsprechenden Gates wieder aktiv.
+
 ## Push-Gate: upstream-Code wird erst nach Review öffentlich
 
 **CI-Begrenzung:** Alle mit dem Upstream-Stand eingehenden GitHub-Workflows (`.github/workflows/*.yml`) sind upstream-Referenz und tragen je Job den Fork-Guard `if: github.repository == 'Niko1221/Strata'` — auf europa und dem GitHub-Mirror (anderer Repositoryname) skippen sämtliche Jobs. Zusätzlich ist `on:` überall auf **nur `workflow_dispatch`** reduziert (User-Entscheid: keine automatischen Abläufe — kein Push-/PR-/Cron-Trigger, keine PR-Bots); die Dateien bleiben als manuelle Upstream-Referenz erhalten. Jede künftige Workflow-Übernahme muss denselben Endzustand zeigen. Regressionstest: `tools/test_fork_workflows.py`.

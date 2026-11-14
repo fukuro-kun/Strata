@@ -8,6 +8,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "strata/prefill/mmq_ids_margin.hpp"
+
 namespace strata::prefill::mmq {
 
 /// This build has the MMQ path (the ggml sources were available to the build).
@@ -65,6 +67,8 @@ struct WeightTab {
 /// [bounds[e], bounds[e+1]) of `xq` (bounds on the device, n+1 entries) times its [w_rows, w_cols] matrix into
 /// dst rows of the same indices (`ld_dst` floats apart, via `ids`: dst row = ids[row], an identity table works).
 /// `total_rows`: the rows of xq; `max_rows`: the most rows one expert has (the launch grid).
+/// If non-null, `ids` must hold at least mmq_ids_table_rows(bounds[n], max_rows) entries, even for empty experts;
+/// bounds can be absolute, so bounds[n] may exceed total_rows. Initialize the margin as well.
 struct Product {
     const void* w = nullptr;
     int type = -1;

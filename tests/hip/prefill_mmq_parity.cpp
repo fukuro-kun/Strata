@@ -118,6 +118,11 @@ Metrics run_product(Context & ctx, hipStream_t stream, const std::string & name,
         bounds.back() != rows || dst_ids.size() != (size_t) rows || x.size() != (size_t) rows * (size_t) cols) {
         throw std::runtime_error(name + ": invalid test geometry");
     }
+    const int max_rows = *std::max_element(counts.begin(), counts.end());
+    const size_t ids_rows = (size_t) strata::prefill::mmq::mmq_ids_table_rows((uint64_t) rows, (uint64_t) max_rows);
+    if (ids_rows == 0) throw std::runtime_error(name + ": MMQ row table does not fit");
+    std::vector<int32_t> padded_ids = dst_ids;
+    padded_ids.resize(ids_rows, 0);
     const size_t expert_bytes = matrix_bytes((int) type, out_rows, cols);
     const size_t tail = 4096; // match the production group's zero guard after its last expert
     std::vector<uint8_t> w((size_t) experts * expert_bytes + tail, 0);
@@ -129,14 +134,14 @@ Metrics run_product(Context & ctx, hipStream_t stream, const std::string & name,
 
     DeviceBuffer dx(x.size() * sizeof(float));
     DeviceBuffer dsrc(src_ids.size() * sizeof(int32_t));
-    DeviceBuffer ddst(dst_ids.size() * sizeof(int32_t));
+    DeviceBuffer ddst(padded_ids.size() * sizeof(int32_t));
     DeviceBuffer dbounds(bounds.size() * sizeof(int32_t));
     DeviceBuffer dw(w.size());
     DeviceBuffer dxq(q8_bytes(rows, cols));
     DeviceBuffer dy((size_t) rows * (size_t) out_rows * sizeof(float));
     hip_check(hipMemcpy(dx.p, x.data(), x.size() * sizeof(float), hipMemcpyHostToDevice), "copy x");
     hip_check(hipMemcpy(dsrc.p, src_ids.data(), src_ids.size() * sizeof(int32_t), hipMemcpyHostToDevice), "copy src ids");
-    hip_check(hipMemcpy(ddst.p, dst_ids.data(), dst_ids.size() * sizeof(int32_t), hipMemcpyHostToDevice), "copy dst ids");
+    hip_check(hipMemcpy(ddst.p, padded_ids.data(), padded_ids.size() * sizeof(int32_t), hipMemcpyHostToDevice), "copy dst ids");
     hip_check(hipMemcpy(dbounds.p, bounds.data(), bounds.size() * sizeof(int32_t), hipMemcpyHostToDevice), "copy bounds");
     hip_check(hipMemcpy(dw.p, w.data(), w.size(), hipMemcpyHostToDevice), "copy weights and zero tail");
     // On the product's stream: a plain hipMemset runs on the null stream, which a non-blocking stream does not wait
@@ -145,7 +150,6 @@ Metrics run_product(Context & ctx, hipStream_t stream, const std::string & name,
               "initialize output sentinel");
 
     quantize(dx.as<float>(), dsrc.as<int32_t>(), dxq.p, (int) type, cols, cols, rows, (void *) stream);
-    const int max_rows = *std::max_element(counts.begin(), counts.end());
     Product p;
     p.w = dw.p; p.type = (int) type; p.w_rows = out_rows; p.w_cols = cols; p.expert_bytes = expert_bytes;
     p.n = experts; p.xq = dxq.p; p.bounds = dbounds.as<int32_t>(); p.ids = ddst.as<int32_t>();

@@ -130,11 +130,13 @@ Routing sort_rows(const std::vector<int32_t>& ids, int E) {
 // MMQ, as prefill.cpp runs it: per group of 16 routed experts a gather, gate/up, SwiGLU, q8_1 of H, down.  Returns
 // Dm [rows][N] in sorted-row order.
 struct MmqBufs {
+    int64_t ids_rows;
     Dev xq, gu, h, hq, dm, ident, bounds, grp_gu, grp_d;
     MmqBufs(int64_t rows, int E)
-        : xq(mmq::q8_bytes(rows, N)), gu((size_t) rows * 1280 * 4), h((size_t) rows * FF * 4),
+        : ids_rows((int64_t) mmq::mmq_ids_table_rows((uint64_t) rows, (uint64_t) (rows / K))),
+          xq(mmq::q8_bytes(rows, N)), gu((size_t) rows * 1280 * 4), h((size_t) rows * FF * 4),
           hq(mmq::q8_bytes(rows, FF)),
-          dm((size_t) rows * N * 4), ident((size_t) rows * 4), bounds((size_t) (2 * (E + E / GROUP + 2)) * 4),
+          dm((size_t) rows * N * 4), ident((size_t) ids_rows * 4), bounds((size_t) (2 * (E + E / GROUP + 2)) * 4),
           grp_gu(GROUP * mmq::matrix_bytes(Q2, 1280, N) + 4096), grp_d(GROUP * mmq::matrix_bytes(Q2, N, FF) + 4096) {}
 };
 void run_mmq(mmq::Context& ctx, MmqBufs& b, const Routing& r, const float* x_dev, const int32_t* src_dev,
@@ -151,7 +153,7 @@ void run_mmq(mmq::Context& ctx, MmqBufs& b, const Routing& r, const float* x_dev
         for (size_t i = 0; i <= GROUP; ++i)
             bh[n + 1 + g * (GROUP + 1) + i] = bh[std::min(n, g * GROUP + i)] - bh[g * GROUP];
     ck(cudaMemcpyAsync(b.bounds.p, bh.data(), bh.size() * 4, cudaMemcpyHostToDevice, s), "bounds");
-    mmq::iota(b.ident.as<int32_t>(), rows, s);
+    mmq::iota(b.ident.as<int32_t>(), b.ids_rows, s);
     mmq::quantize(x_dev, src_dev, b.xq.p, Q2, N, N, rows, s);
     for (size_t j = 0; j < n; ++j) {
         const size_t q = j % GROUP;
