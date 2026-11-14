@@ -79,6 +79,18 @@ Rollout sind nicht Teil dieses Auftrags.
 - Verbleibend vor Promotion auf `main`: Nutzer-Freigabe, dann
   Promotion + uranus-Rollout.
 
+## Promotion + Rollout 2026-11-14 spaet — ABGESCHLOSSEN
+
+- Nutzer-Freigabe erhalten; HIP/SYCL-Gate-Policy in
+  `docs/UPSTREAM_SYNC.md` verankert (kein HIP im LAN → kein
+  Standard-Gate; SYCL nur statisch).
+- Promotion-Merge `8e0cc408` → `main` → origin.
+- uranus: Engine mit explizitem CUDA-13.0-Pfad gebaut (sm_89),
+  Deploy-Dir `8e0cc408-20261114T222150Z`, Service-Restart, ready,
+  Smoke ok. Laufende Binary via `~/strata-deploy/current` verifiziert.
+- eris: unveraendert auf Kandidaten-Build, Smoke ok.
+- Beide Hosts produktiv auf dem MMQ-Fix.
+
 ## Test- und Fehlerstrategie
 
 - Vor der Ausfuehrung Testcode, Buildpfad und gepinnte Inputs statisch pruefen.
