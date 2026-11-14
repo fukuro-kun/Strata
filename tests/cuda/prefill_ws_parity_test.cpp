@@ -123,13 +123,15 @@ Result run_case(ggml_type gt, ggml_type dt, const std::vector<int32_t>& cnt, uin
     for (auto& v : x) v = nd(rng) * 0.7f;
 
     const size_t xqb = mmq::q8_bytes(rows, kNEmbd), hqb = mmq::q8_bytes(rows, kNFF);
+    const int64_t ids_rows = (int64_t) mmq::mmq_ids_table_rows((uint64_t) rows, (uint64_t) rows);
+    if (ids_rows == 0) throw std::runtime_error("MMQ row table does not fit");
     Dev dblob(blob.size()), dx(x.size() * 4), dxq(xqb), dbnd((size_t) (E + 1) * 4), dxoff((size_t) E * 8);
-    Dev dident((size_t) rows * 4), dgu_ref((size_t) rows * kGuRows * 4), dgu((size_t) rows * kGuRows * 4);
+    Dev dident((size_t) ids_rows * 4), dgu_ref((size_t) rows * kGuRows * 4), dgu((size_t) rows * kGuRows * 4);
     Dev dh((size_t) rows * kNFF * 4), dhq_ref(hqb), dhq(hqb), ddm_ref((size_t) rows * kNEmbd * 4), ddm((size_t) rows * kNEmbd * 4),
         ddm_rh((size_t) rows * kNEmbd * 4), ddm_fast((size_t) rows * kNEmbd * 4);
     dblob.up(blob); dx.up(x); dbnd.up(bounds); dxoff.up(xoff);
-    std::vector<int32_t> ident((size_t) rows);
-    for (int64_t i = 0; i < rows; ++i) ident[(size_t) i] = (int32_t) i;
+    std::vector<int32_t> ident((size_t) ids_rows);
+    for (int64_t i = 0; i < ids_rows; ++i) ident[(size_t) i] = (int32_t) i;
     dident.up(ident);
     mmq::quantize(dx.as<float>(), nullptr, dxq.p, (int) gt, kNEmbd, kNEmbd, rows, nullptr);
 

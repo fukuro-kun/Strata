@@ -74,10 +74,12 @@ double run_case(const Case& c, int R, std::mt19937& rng, float* ms_out) {
     ck(cudaMalloc(&dq, mmq::q8_bytes(T, c.cols)), "xq");
     ck(cudaMalloc(&dys, (size_t) T * 4), "ys");
     ck(cudaMalloc(&dd, (size_t) T * c.rows * 4), "dst");
-    ck(cudaMalloc(&dids, (size_t) T * 4), "ids");
+    const uint64_t ids_rows = mmq::mmq_ids_table_rows((uint64_t) T, (uint64_t) R);
+    if (ids_rows == 0) { std::fprintf(stderr, "MMQ row table does not fit\n"); std::exit(1); }
+    ck(cudaMalloc(&dids, (size_t) ids_rows * sizeof(int32_t)), "ids");
     ck(cudaMalloc(&db, (E + 1) * 4), "bounds");
     ck(cudaMemcpy(db, bounds.data(), (E + 1) * 4, cudaMemcpyHostToDevice), "bounds");
-    mmq::iota(dids, T, nullptr);
+    mmq::iota(dids, (int64_t) ids_rows, nullptr);
     mmq::quantize(dx, nullptr, dq, c.t, c.cols, c.cols, T, nullptr, dys);
     mmq::Context ctx;
     mmq::Product p;

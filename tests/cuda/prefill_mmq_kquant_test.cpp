@@ -77,7 +77,12 @@ void product(mmq::Context& ctx, cudaStream_t s, const char* name, ggml_type t, i
     const int n = (int) counts.size(), rows = std::accumulate(counts.begin(), counts.end(), 0);
     std::vector<int32_t> bounds((size_t) n + 1, 0);
     for (int e = 0; e < n; ++e) bounds[(size_t) e + 1] = bounds[(size_t) e] + counts[(size_t) e];
-    const auto src = perm(rows, trial + 1, false), dst = perm(rows, trial + 2, true);
+    const auto src = perm(rows, trial + 1, false);
+    auto dst = perm(rows, trial + 2, true);
+    const int max_rows = *std::max_element(counts.begin(), counts.end());
+    const size_t ids_rows = (size_t) mmq::mmq_ids_table_rows((uint64_t) rows, (uint64_t) max_rows);
+    if (ids_rows == 0) throw std::runtime_error(std::string(name) + ": MMQ row table does not fit");
+    dst.resize(ids_rows, 0);
     const std::vector<float> x = make_x(rows, cols, trial);
     const size_t eb = mmq::matrix_bytes((int) t, out_rows, cols);
     if (eb != (size_t) out_rows * ggml_row_size(t, cols)) throw std::runtime_error(std::string(name) + ": matrix_bytes");
@@ -87,7 +92,7 @@ void product(mmq::Context& ctx, cudaStream_t s, const char* name, ggml_type t, i
         ws.push_back(make_matrix(t, out_rows, cols, e, trial));
         std::copy(ws.back().begin(), ws.back().end(), w.begin() + (ptrdiff_t) ((size_t) e * eb));
     }
-    Dev dx(x.size() * 4), dsrc((size_t) rows * 4), ddst((size_t) rows * 4), db(bounds.size() * 4), dw(w.size()),
+    Dev dx(x.size() * 4), dsrc((size_t) rows * 4), ddst(dst.size() * 4), db(bounds.size() * 4), dw(w.size()),
         dxq(mmq::q8_bytes(rows, cols)), dy((size_t) rows * (size_t) out_rows * 4);
     ck(cudaMemcpy(dx.p, x.data(), x.size() * 4, cudaMemcpyHostToDevice), "x");
     ck(cudaMemcpy(dsrc.p, src.data(), src.size() * 4, cudaMemcpyHostToDevice), "src");
@@ -102,7 +107,7 @@ void product(mmq::Context& ctx, cudaStream_t s, const char* name, ggml_type t, i
     mmq::Product p;
     p.w = dw.p; p.type = (int) t; p.w_rows = out_rows; p.w_cols = cols; p.expert_bytes = eb; p.n = n;
     p.xq = dxq.p; p.bounds = (const int32_t*) db.p; p.ids = (const int32_t*) ddst.p; p.total_rows = rows;
-    p.max_rows = *std::max_element(counts.begin(), counts.end()); p.dst = (float*) dy.p; p.ld_dst = out_rows;
+    p.max_rows = max_rows; p.dst = (float*) dy.p; p.ld_dst = out_rows;
     ctx.run(p, s);
     ck(cudaGetLastError(), "launch");
     ck(cudaStreamSynchronize(s), "sync");
