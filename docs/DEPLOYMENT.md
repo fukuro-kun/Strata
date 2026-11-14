@@ -110,8 +110,12 @@ Produktion besteht aus **zwei getrennt gepinnten Schichten**:
     == manifest.fork_sha          (~/strata-deploy/current/MANIFEST.json)
     == origin/main                (kanonischer Fork-Stand auf europa)
 
-Ausnahme ist nur ein dokumentiertes Kandidaten-Fenster: dann zeigt
-`fork_sha` den Kandidaten-Commit, nie einen uncommitteten Baum.
+`origin/main` darf durch reine Doku-/Prozess-Commits voraus sein —
+entscheidend ist `git merge-base --is-ancestor <fork_sha> origin/main`:
+`fork_sha` ist immer ein **auf main enthaltener, reviewter Stand**, nie
+ein uncommitteter Baum und nie unreviewtes Upstream. Direkt nach einem
+Release gilt Gleichheit. Ausnahme ist nur ein dokumentiertes
+Kandidaten-Fenster: dann zeigt `fork_sha` den Kandidaten-Commit.
 
 **Regeln:**
 
