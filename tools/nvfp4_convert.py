@@ -2,7 +2,7 @@
 
     python tools/nvfp4_convert.py --model <ModelOpt NVFP4 dir> --outfile <model.gguf>
 
-This is llama.cpp's own converter (third_party/llama.cpp at the commit setup.py pins), run with the type policy
+This is llama.cpp's own converter (vendored at third_party/strata-gguf-py, the commit setup.py pins), run with the type policy
 Strata's engine needs. The converter already repacks ModelOpt NVFP4 experts into ggml's block_nvfp4 without loss
 (tools/nvfp4_verify.py proves it bit for bit) and writes each expert's weight_scale_2 as a separate F32 tensor
 `blk.N.ffn_{gate,up,down}_exps.scale`, one value per expert. What it does not know is Strata's layout:

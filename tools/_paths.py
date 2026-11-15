@@ -1,6 +1,6 @@
 """tools/_paths.py - where the tools find llama.cpp's gguf-py (for the MTP packer and the fixtures).
 
-Order: $STRATA_GGUF_PY, then <engine>/third_party/llama.cpp/gguf-py (what setup.py clones), then the development
+Order: $STRATA_GGUF_PY, then <engine>/third_party/strata-gguf-py (vendored), then <engine>/third_party/llama.cpp/gguf-py (legacy), then the development
 tree's ../../.ref/llama.cpp/gguf-py, then (#3269) the install folders: in the Control package setup.py writes third_party/
 to the per-user install folder ($STRATA_INSTALL_DIR, else the app's folder, the Terminal's remembered installs), not
 beside the tools, so a tool run by hand from the package finds it there.
@@ -32,7 +32,8 @@ def _install_dirs() -> list[Path]:
 
 
 def gguf_py() -> str:
-    cands = [os.environ.get("STRATA_GGUF_PY"), ENGINE / "third_party" / "llama.cpp" / "gguf-py",
+    cands = [os.environ.get("STRATA_GGUF_PY"), ENGINE / "third_party" / "strata-gguf-py",
+             ENGINE / "third_party" / "llama.cpp" / "gguf-py",
              ENGINE.parents[min(1, len(ENGINE.parents) - 1)] / ".ref" / "llama.cpp" / "gguf-py"]   # the dev tree; a shallow install (G:\Strata) has no grandparent
     cands += [d / "third_party" / "llama.cpp" / "gguf-py" for d in _install_dirs()]
     for c in cands:

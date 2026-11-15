@@ -36,11 +36,12 @@ Upstream-Checkout (`~/git/strata`) und schon gar nicht über
 
 - **MANIFEST.json** — unveränderlicher Fingerabdruck eines Deploy-Stands:
   `fork_sha`, `baseline_sha`, `fork_files`/`fork_commits` (Divergenz zum
-  reviewed Baseline-Pin), `llama_cpp` (Pin + `.strata-pin`-Status),
+  reviewed Baseline-Pin), `llama_cpp` (Pin + `pin_src`/`pin_ok`-Status — vendored
+  `strata-ggml/UPSTREAM.md` oder legacy `.strata-pin`),
   `toolchain`, `deps` (Wheel-Hashes), `artifacts` (Binary-SHA256),
   `build` (BUILD.json), `models`, `created`, `host`.
   Erzeugt/verifiziert von `tools/offline/make_manifest.py` — bricht bei
-  dirty tree, fehlendem BUILD.json oder fehlendem `.strata-pin`-Beweis ab;
+  dirty tree, fehlendem BUILD.json oder fehlendem Pin-Beweis ab;
   `--verify` re-hasht Artefakte + prüft fork_sha, sauberen Tree, Pin und
   Deps (driftendes Ziel wird beim Rollback abgelehnt).
 - **strata-deploy/\<id\>/** — versioniertes Deploy-Verzeichnis
@@ -102,7 +103,7 @@ Produktion besteht aus **zwei getrennt gepinnten Schichten**:
    Branch, niemals ein Kandidaten-Worktree).
 2. **Engine-Binaries + Config** aus `~/strata-deploy/current`
    (versioniertes Deploy-Dir, `MANIFEST.json` nagelt `fork_sha`,
-   `llama_cpp.commit/.strata-pin` und Artefakt-SHA256 fest).
+   `llama_cpp.commit/pin_src` und Artefakt-SHA256 fest).
 
 **Kanonischer Zustand — alle drei Zeiger zeigen denselben Commit:**
 

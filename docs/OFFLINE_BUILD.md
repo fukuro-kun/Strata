@@ -53,14 +53,31 @@ vor dieser Absicherung durch dessen `run`-Gate geschuetzt.
 
 ## Prinzip
 
-1. **Beschaffung** (einmalig, bewusst, dokumentiert): `tools/offline/fetch_llamacpp.sh`
-   legt `third_party/llama.cpp` am gepinnten Commit an (`LLAMA_CPP_COMMIT` aus
-   `setup.py`, aktuell `3cf03257f219afbe7334045ff7c6a06ac68c627d`) und markiert
-   es mit `.strata-pin`.
+1. **Vendored Quellen** (im Repo, kein Download nötig): die llama.cpp-Quellen
+   liegen seit dem `strata-*`-Layout in getrennten, per-Manifest verifizierten
+   Bäumen am selben Pin (`LLAMA_CPP_COMMIT` aus `setup.py`, aktuell
+   `3cf03257f219afbe7334045ff7c6a06ac68c627d`):
+
+   | Baum | Zweck |
+   |---|---|
+   | `third_party/strata-ggml` | Engine-ggml (base/cpu/cuda) + `ggml-cuda-tq` (Trellis-Typen, patched/additive Kopien) |
+   | `third_party/strata-llama` | llama.cpp-Untermenge für `strata-vision` (`LLAMA_DIR`-Default) |
+   | `third_party/strata-gguf-py` | gguf-py für Pack-/Konverter-Tools (`tools/_paths.py`) |
+   | `third_party/ggml`, `third_party/stb` | schlanke Header-/Pin-Referenzen |
+
+   `tools/check_vendored.py` hasht **jede** Datei gegen das UPSTREAM.md-Manifest
+   (Klassen `upstream/edited/added/copy/patched`; `patched` muss rein additiv
+   sein) und lehnt ungelistete Dateien ab. Das ist strenger als der frühere
+   `.strata-pin`-Marker: ein ausgetauschtes oder hinzugefügtes File fällt sofort auf.
+
+   `tools/offline/fetch_llamacpp.sh` bleibt der dokumentierte Beschaffungspfad
+   für einen **vollständigen** llama.cpp-Checkout — nur noch nötig für
+   `-DSTRATA_GGML_DIR=<checkout>`-Override-Builds (Review-/Vergleichsbuilds).
+
 2. **Build** (offline, fail closed): `tools/offline/build_engine.sh` prüft alle
    Inputs *vor* dem Start; fehlt etwas → Abbruch mit Klartext, niemals Download.
 
-## Beschaffung (Quellen, Präferenzreihenfolge)
+## Beschaffung (nur für Override-/Dev-Builds)
 
 ```bash
 # A) Vorhandener Baum (z. B. per rsync vom LAN-Host). Pin-Nachweis nötig:
@@ -79,13 +96,9 @@ tools/offline/fetch_llamacpp.sh --clone
 Jeder Modus verifiziert danach `ggml/CMakeLists.txt`, `gguf-py/` und schreibt
 `.strata-pin` mit dem erwarteten Commit. Pin-Nachweise werden **vor** dem
 Kopieren geprüft; ein bestehendes `third_party/llama.cpp` wird nie still
-ersetzt. `build_engine.sh` lehnt Bäume ohne Pin-Beweis ab — und bei einem
-echten git-Checkout zusätzlich einen *dirty tree* (Checkout am Pin mit lokalen
-Änderungen baut unverifizierten Code → Abbruch).
-
-**Historischer Beleg:** die Produktiv-`third_party/llama.cpp`-Bäume zweier
-unabhängig eingerichteter Hosts sind byte-identisch (2824 Dateien, einzig
-`__pycache__` unterscheidet sich je nach Python-Version) — siehe P0-Inventar.
+ersetzt. `build_engine.sh` lehnt einen Override-Baum ohne Pin-Beweis ab — und
+bei einem echten git-Checkout zusätzlich einen *dirty tree* (Checkout am Pin mit
+lokalen Änderungen baut unverifizierten Code → Abbruch).
 
 ## Build
 
@@ -97,11 +110,15 @@ tools/offline/build_engine.sh --arch 89 --vision gpu   # GPU-Vision statt cpu/of
 
 Was das Skript tut:
 
-- Prüft `.strata-pin` bzw. `git rev-parse HEAD` + sauberen Tree des ggml-Baums
-  gegen den Pin — **Abbruch bei Mismatch oder fehlendem Beweis**.
+- Pin-Beweis des ggml-Baums: vendored `third_party/strata-ggml` →
+  `tools/check_vendored.py` (per-Datei-Hashes + Manifest-Pin == `LLAMA_CPP_COMMIT`);
+  Override-Baum → `.strata-pin` bzw. `git rev-parse HEAD` + sauberer Tree —
+  **Abbruch bei Mismatch oder fehlendem Beweis**.
 - Konfiguriert exakt wie der Upstream-Local-Build (`cmake -G Ninja
-  -DSTRATA_ENABLE_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=<sm> -DSTRATA_GGML_DIR=…`),
-  plus `-DCUDAToolkit_ROOT` wenn nvcc nicht unter `/usr` liegt.
+  -DSTRATA_ENABLE_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=<sm>`); `STRATA_GGML_DIR`
+  wird nur gesetzt, wenn der Aufrufer einen Override exportiert — leer
+  bedeutet vendored Baum (und dessen `ggml-cuda-tq`, nicht das Overlay).
+  Plus `-DCUDAToolkit_ROOT` wenn nvcc nicht unter `/usr` liegt.
 - Baut `strata` (ein Retry wie upstream bei CUDA-13-ptxas-Flake), danach
   `strata-vision` aus `tools/vision` (eigener CMake-Baum, `LLAMA_DIR`-basiert —
   ohnehin fetch-frei).
@@ -168,11 +185,13 @@ python3 tools/offline/make_config.py NAME --pack DIR --native GGUF ...
 
 ## Fail-closed-Garantien
 
-- `CMakeLists.txt` + `sycl/CMakeLists.txt`: leeres `STRATA_GGML_DIR` →
-  `FATAL_ERROR` statt `FetchContent`-Download. Escape nur über
-  `-DSTRATA_ALLOW_GGML_FETCH=ON` (für P4-Review-Builds gedacht).
+- `CMakeLists.txt` hat **keinen** FetchContent-Pfad mehr: leeres
+  `STRATA_GGML_DIR` resolve-t auf den vendored In-Repo-Baum
+  (`third_party/strata-ggml`); der frühere `STRATA_ALLOW_GGML_FETCH`-Escape
+  ist entfernt — Netz-Beschaffung zur Configure-Zeit ist strukturell
+  unmöglich, nicht nur abgeschaltet. `sycl/CMakeLists.txt` analog.
 - `tools/vision/CMakeLists.txt` hat keinen Fetch-Pfad (`LLAMA_DIR` default
-  `third_party/llama.cpp`) — fehlender Baum bricht nativ ab.
+  `third_party/strata-llama`) — fehlender Baum bricht nativ ab.
 - Das Skript enthält keinerlei Netz-Aufrufe (kein pip, kein curl, kein apt).
 - Ein alter Build-Cache mit abweichenden Optionen (`CMAKE_CUDA_COMPILER`,
   `STRATA_GGML_DIR`, `STRATA_ENABLE_CUDA`) wird erkannt und entfernt — sonst

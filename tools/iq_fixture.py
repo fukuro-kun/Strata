@@ -13,7 +13,7 @@ published quantizer in gguf-py (it dequantizes only), so each block combines san
 (written at the layout's scale offsets, see SCALE_OFFSETS below) with seeded index/sub-scale bytes - the
 dequantized reference covers real codebook values either way, which is what the parity compares.
 
-Dependencies: python3 and numpy, plus the repository's VENDORED gguf-py (third_party/llama.cpp/gguf-py -
+Dependencies: python3 and numpy, plus the repository's VENDORED gguf-py (third_party/strata-gguf-py -
 no pip install; it is put on sys.path relative to this file).  Q2_0 is this repository's own format
 (GGML type 42, which gguf-py does not carry): its codec comes from tools/gguf_writer.py.
 
@@ -40,7 +40,7 @@ try:
     from gguf_writer import dequantize_q2_0, quantize_q2_0
 except ImportError as e:  # a missing numpy or vendored gguf-py must be explicit, not a traceback
     sys.stderr.write(f"iq_fixture: missing dependency: {e}\n"
-                     "numpy and the repository's vendored gguf-py (third_party/llama.cpp/gguf-py) are "
+                     "numpy and the repository's vendored gguf-py (third_party/strata-gguf-py) are "
                      "required.  The vendored copy comes with setup's llama.cpp download (the pinned "
                      "LLAMA_CPP_COMMIT zip); on a fresh checkout run setup once, or fetch that zip and "
                      "unpack its gguf-py there.\n")

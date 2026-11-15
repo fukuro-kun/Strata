@@ -5,7 +5,7 @@ ids of a plain encode.
     python -m unittest tools.test_strata_tokenizer -v
 
 The real vocabulary comes from $STRATA_TOKENIZER (a pack's tokenizer/ directory) when set, else from llama.cpp's
-`models/ggml-vocab-qwen35.gguf` next to the gguf-py the tools use ($STRATA_GGUF_PY, third_party/llama.cpp); the
+`models/ggml-vocab-qwen35.gguf` next to the gguf-py the tools use ($STRATA_GGUF_PY, third_party/strata-gguf-py); the
 tests that need it are skipped without one.  The chat template's USER_DEFINED tokens (`<think>`, `<tool_call>`,
 ...) are added to the llama.cpp vocabulary, which does not have them, as the pack's has.
 """

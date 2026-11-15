@@ -64,8 +64,10 @@ Evidenz-Ablage (Bewusst nicht committed — Repo-Regel).
 ### P1 — Isolierter Offline-Build-Einstieg — **ERLEDIGT 2026-10-18**
 
 - [x] Build-Einstieg: `tools/offline/build_engine.sh` (fail-closed, keine Netz-Aufrufe)
-- [x] Lokales llama.cpp via `STRATA_GGML_DIR`: `third_party/llama.cpp` @
-      `3cf03257…` + `.strata-pin`; Bezug via `tools/offline/fetch_llamacpp.sh`
+- [x] Vendored ggml/llama-Bäume (`strata-ggml`, `strata-llama`, `strata-gguf-py`)
+      @ `3cf03257…`, per-Datei-verifiziert via `tools/check_vendored.py`;
+      Voll-Checkout optional via `tools/offline/fetch_llamacpp.sh` (nur
+      `STRATA_GGML_DIR`-Override-Builds)
       (LAN-Kopie, byte-identisch zu zwei Produktiv-Bäumen verifiziert)
 - [x] Fail closed: CMake `FATAL_ERROR` bei leerem `STRATA_GGML_DIR` (Escape:
       `-DSTRATA_ALLOW_GGML_FETCH=ON`); Skript bricht bei fehlendem Input/Pin-

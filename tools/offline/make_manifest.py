@@ -96,12 +96,20 @@ def main() -> int:
     mo = re.search(r'LLAMA_CPP_COMMIT\s*=\s*"([0-9a-f]{40})"', (ROOT / "setup.py").read_text())
     if not mo:
         sys.exit("ERROR: LLAMA_CPP_COMMIT not found in setup.py")
+    # vendored layout: the pin is declared in third_party/strata-ggml/UPSTREAM.md and every
+    # vendored file is hash-verified by tools/check_vendored.py; legacy tree: .strata-pin
+    up = ROOT / "third_party" / "strata-ggml" / "UPSTREAM.md"
     pin_file = ROOT / "third_party" / "llama.cpp" / ".strata-pin"
-    pin = pin_file.read_text().strip() if pin_file.exists() else None
-    m["llama_cpp"] = {"commit": mo.group(1), "pin_file": pin,
+    pin = src = None
+    if up.exists():
+        m2 = re.search(r'^pin:\s*([0-9a-f]{40})', up.read_text(), re.M)
+        pin, src = (m2.group(1) if m2 else None), "strata-ggml/UPSTREAM.md"
+    elif pin_file.exists():
+        pin, src = pin_file.read_text().strip(), "llama.cpp/.strata-pin"
+    m["llama_cpp"] = {"commit": mo.group(1), "pin_file": pin, "pin_src": src,
                       "pin_ok": pin == mo.group(1)}
     if pin != mo.group(1):
-        sys.exit(f"ERROR: llama.cpp pin proof missing/mismatch (.strata-pin={pin}, expected {mo.group(1)})")
+        sys.exit(f"ERROR: llama.cpp pin proof missing/mismatch ({src}={pin}, expected {mo.group(1)})")
 
     # --- toolchain ---
     # BUILD.json exists by the time a manifest is made (checked below) — its
@@ -222,11 +230,15 @@ def verify(path: Path) -> int:
     pin = m.get("llama_cpp", {})
     if pin:
         cur_pin = None
+        up = ROOT / "third_party" / "strata-ggml" / "UPSTREAM.md"
         pf = ROOT / "third_party" / "llama.cpp" / ".strata-pin"
-        if pf.exists():
+        if up.exists():
+            m2 = re.search(r'^pin:\s*([0-9a-f]{40})', up.read_text(), re.M)
+            cur_pin = m2.group(1) if m2 else None
+        elif pf.exists():
             cur_pin = pf.read_text().strip()
         if cur_pin != pin.get("commit"):
-            bad.append("llama_cpp .strata-pin mismatch/missing now")
+            bad.append("llama_cpp vendored pin mismatch/missing now")
         if not pin.get("pin_ok"):
             bad.append("llama_cpp pin_ok was false in manifest")
     if m.get("deps"):

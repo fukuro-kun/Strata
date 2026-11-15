@@ -17,9 +17,12 @@
 #                                 [--cmake-def DEF]...  (extra -D args)
 #
 # Requirements (checked before anything runs):
-#   - local llama.cpp tree at third_party/llama.cpp (or $STRATA_GGML_DIR):
-#     .strata-pin == LLAMA_CPP_COMMIT (setup.py), and/or a git checkout whose
-#     HEAD is the pin with a CLEAN tree
+#   - vendored ggml tree at third_party/strata-ggml (engine; or $STRATA_GGML_DIR
+#     override): the vendored tree is proven per-file by tools/check_vendored.py;
+#     an override checkout must prove the pin via .strata-pin == LLAMA_CPP_COMMIT
+#     (setup.py) and/or a git checkout whose HEAD is the pin with a CLEAN tree
+#   - vendored llama.cpp subset at third_party/strata-llama (vision; or
+#     $STRATA_LLAMA_DIR override)
 #   - cmake >= 3.24, ninja, C and C++ compilers, python3
 #   - for --cuda on / auto+found: nvcc and an architecture >= sm_75
 
@@ -69,17 +72,27 @@ fi
 
 LLAMA_CPP_COMMIT="$(grep -oP 'LLAMA_CPP_COMMIT\s*=\s*"\K[0-9a-f]{40}' setup.py)" \
   || die "cannot read LLAMA_CPP_COMMIT from setup.py"
-GGML_INPUT="${STRATA_GGML_DIR:-$REPO_ROOT/third_party/llama.cpp}"
+GGML_INPUT="${STRATA_GGML_DIR:-$REPO_ROOT/third_party/strata-ggml}"
 GGML_DIR="$(cd "$GGML_INPUT" 2>/dev/null && pwd)" \
-  || die "STRATA_GGML_DIR '$GGML_INPUT' does not exist — run tools/offline/fetch_llamacpp.sh first"
+  || die "ggml tree '$GGML_INPUT' does not exist"
+LLAMA_INPUT="${STRATA_LLAMA_DIR:-$REPO_ROOT/third_party/strata-llama}"
+LLAMA_DIR="$(cd "$LLAMA_INPUT" 2>/dev/null && pwd)" \
+  || die "llama tree '$LLAMA_INPUT' does not exist — vision needs third_party/strata-llama"
 
-[ -f "$GGML_DIR/ggml/CMakeLists.txt" ] || die "$GGML_DIR has no ggml/CMakeLists.txt — not a llama.cpp tree"
-[ -d "$GGML_DIR/gguf-py" ]           || die "$GGML_DIR lacks gguf-py/ — incomplete llama.cpp tree"
+[ -f "$GGML_DIR/ggml/CMakeLists.txt" ] || die "$GGML_DIR has no ggml/CMakeLists.txt — not a ggml/llama.cpp tree"
+[ -d "$REPO_ROOT/third_party/strata-gguf-py" ] || die "third_party/strata-gguf-py missing — incomplete vendored layout"
 
 # Pin proof: require .strata-pin match and/or clean git checkout at the pin.
 # A dirty checkout at the pin builds unverified content — refused.
 export GIT_NO_LAZY_FETCH=1
 PROOF=0
+if [ "$GGML_DIR" = "$REPO_ROOT/third_party/strata-ggml" ]; then
+  # vendored tree: the manifest verifier hashes every file against the declared pin
+  VOUT="$(python3 tools/check_vendored.py)" || die "tools/check_vendored.py failed: $VOUT"
+  echo "$VOUT" | grep -q "strata-ggml: .*pin ${LLAMA_CPP_COMMIT:0:9}" \
+    || die "strata-ggml manifest pin does not match $LLAMA_CPP_COMMIT"
+  PROOF=1; info "ggml pin proven by tools/check_vendored.py"
+fi
 if [ -f "$GGML_DIR/.strata-pin" ]; then
   PIN="$(tr -d '[:space:]' < "$GGML_DIR/.strata-pin")"
   [ "$PIN" = "$LLAMA_CPP_COMMIT" ] \
@@ -153,7 +166,11 @@ fi
 
 # ---------------------------------------------------------------- build
 
-DEFS=(-DCMAKE_BUILD_TYPE=Release -DSTRATA_GGML_DIR="$GGML_DIR" -DSTRATA_BUILD_TESTS="$TESTS")
+DEFS=(-DCMAKE_BUILD_TYPE=Release -DSTRATA_BUILD_TESTS="$TESTS")
+# STRATA_GGML_DIR means "override away from the vendored tree" — pass it only
+# when the caller actually set one; empty makes CMake resolve the vendored
+# third_party/strata-ggml (and pick its ggml-cuda-tq dir instead of the overlay).
+[ -n "${STRATA_GGML_DIR:-}" ] && DEFS+=(-DSTRATA_GGML_DIR="$GGML_DIR")
 if [ "$CUDA" != off ]; then
   # A user-supplied --cmake-def CMAKE_CUDA_COMPILER=… wins over PATH-nvcc —
   # needed on hosts whose default toolkit is older than the intended one.
@@ -183,7 +200,7 @@ if [ -f "$BUILD_DIR/CMakeCache.txt" ]; then
   cache_get() { grep -m1 "^$1:" "$BUILD_DIR/CMakeCache.txt" | cut -d= -f2-; }
   want_cuda="OFF"; [ "$CUDA" != off ] && want_cuda="ON"
   stale=0
-  [ "$(cache_get STRATA_GGML_DIR)"    = "$GGML_DIR"  ] || stale=1
+  [ "$(cache_get STRATA_GGML_DIR)"    = "${STRATA_GGML_DIR:-}"  ] || stale=1
   [ "$(cache_get STRATA_ENABLE_CUDA)" = "$want_cuda" ] || stale=1
   if [ "$CUDA" != off ]; then
     [ "$(cache_get CMAKE_CUDA_COMPILER)" = "$NVCC_REAL" ] || stale=1
@@ -210,7 +227,7 @@ fi
 VEXE=""
 if [ "$VISION" != off ]; then
   VDIR="$REPO_ROOT/build-vision"
-  VDEFS=(-DCMAKE_BUILD_TYPE=Release -DLLAMA_DIR="$GGML_DIR" -DSTRATA_PORTABLE=OFF)
+  VDEFS=(-DCMAKE_BUILD_TYPE=Release -DLLAMA_DIR="$LLAMA_DIR" -DSTRATA_PORTABLE=OFF)
   if [ "$VISION" = gpu ]; then
     VDEFS+=(-DSTRATA_VISION_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="$ARCHS"
             -DCMAKE_CUDA_COMPILER="$(readlink -f "$NVCC")")

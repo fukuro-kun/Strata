@@ -24,7 +24,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCES = [("docs", "*.md"), ("src", "*.cpp"), ("src", "*.cu"), ("include", "*.hpp"), ("serve", "*.py"), ("tools", "*.py"),
-           ("third_party/llama.cpp/docs", "*.md")]
+           ("third_party/strata-llama", "*.md")]
 WORDS = ["amber", "falcon", "quartz", "willow", "copper", "harbor", "saffron", "glacier", "orchid", "lantern",
          "meadow", "cobalt", "juniper", "tundra", "velvet", "ember"]
 CHARS_PER_TOKEN = 3.2

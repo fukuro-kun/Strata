@@ -175,10 +175,14 @@ option(STRATA_Q6K_EXPERTS "Build the Q6_K gate/up grouped expert kernels (UD-Q6_
 if(STRATA_Q6K_EXPERTS)
   add_compile_definitions(STRATA_Q6K_EXPERTS=1)
 endif()
-# FORK: help text updated — empty no longer fetches by default (STRATA_ALLOW_GGML_FETCH=OFF fails closed).
-set(STRATA_GGML_DIR "" CACHE PATH "llama.cpp checkout to take ggml from (required; empty is a hard error unless STRATA_ALLOW_GGML_FETCH=ON)")
-# FORK (fukuro-kun/Strata): fail closed by default, see top-level CMakeLists.txt / docs/OFFLINE_BUILD.md.
-option(STRATA_ALLOW_GGML_FETCH "allow FetchContent download of pinned llama.cpp when STRATA_GGML_DIR is empty" OFF)
+# FORK (fukuro-kun/Strata): no FetchContent path at all — an empty STRATA_GGML_DIR resolves to the
+# in-repo vendored tree (third_party/strata-ggml), see top-level CMakeLists.txt / docs/OFFLINE_BUILD.md.
+set(STRATA_GGML_DIR "" CACHE PATH "llama.cpp checkout to take ggml from instead of the vendored third_party/strata-ggml (empty: the vendored tree)")
+if(STRATA_GGML_DIR)
+  set(_strata_ggml_root "${STRATA_GGML_DIR}")
+else()
+  get_filename_component(_strata_ggml_root "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/strata-ggml" ABSOLUTE)
+endif()
 if(STRATA_NATIVE_EXPERTS)
   set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
   set(GGML_STATIC ON CACHE BOOL "" FORCE)
@@ -189,28 +193,7 @@ if(STRATA_NATIVE_EXPERTS)
   set(GGML_BUILD_TESTS OFF CACHE BOOL "" FORCE)
   set(GGML_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
   set(GGML_NATIVE ON CACHE BOOL "" FORCE)
-  if(STRATA_GGML_DIR)
-    add_subdirectory(${STRATA_GGML_DIR}/ggml ${CMAKE_BINARY_DIR}/ggml EXCLUDE_FROM_ALL)
-  elseif(NOT STRATA_ALLOW_GGML_FETCH)
-    # FORK (fukuro-kun/Strata): fail closed, as in the top-level CMakeLists — see docs/OFFLINE_BUILD.md.
-    message(FATAL_ERROR
-      "STRATA_GGML_DIR is not set. Fork policy (offline build): pass "
-      "-DSTRATA_GGML_DIR=<local pinned llama.cpp checkout> (pinned commit "
-      "3cf03257f219afbe7334045ff7c6a06ac68c627d). To use upstream's FetchContent "
-      "path instead — deliberate, documented procurement only — configure with "
-      "-DSTRATA_ALLOW_GGML_FETCH=ON.")
-  else()
-    include(FetchContent)
-    FetchContent_Declare(strata_llamacpp
-      GIT_REPOSITORY https://github.com/ggml-org/llama.cpp.git
-      GIT_TAG 3cf03257f219afbe7334045ff7c6a06ac68c627d
-      GIT_SHALLOW FALSE)
-    FetchContent_GetProperties(strata_llamacpp)
-    if(NOT strata_llamacpp_POPULATED)
-      FetchContent_Populate(strata_llamacpp)
-    endif()
-    add_subdirectory(${strata_llamacpp_SOURCE_DIR}/ggml ${CMAKE_BINARY_DIR}/ggml EXCLUDE_FROM_ALL)
-  endif()
+  add_subdirectory(${_strata_ggml_root}/ggml ${CMAKE_BINARY_DIR}/ggml EXCLUDE_FROM_ALL)
   strata_resolve(_cpu_native src/kernels/cpu/native_expert.cpp src/kernels/cpu/iq_avx512.cpp src/kernels/cpu/iq_avx2.cpp
                              src/kernels/cpu/kq_avx2.cpp src/kernels/cpu/kq_avx1.cpp   # 0.1.31: the Q4_K/Q5_K/Q5_1/Q8_0 expert rows
                              src/kernels/cpu/q2_avx1.cpp src/kernels/cpu/iq_avx1.cpp   # 0.1.42: AVX1 (no AVX2) Q2_0 / i-quant rows

@@ -38,15 +38,21 @@ Komplett-Clone (nicht shallow), keine Submodules, keine CI-Workflows
 | `tools/` | Build-/Pack-/Kalibrier-Tools (`iq_pack.py`, `mtp_fetch.py`, …) |
 | `tests/` | Native Test-Suite |
 | `data/` | Eingecheckte Binärdaten: `expert-profile{,-coder,-sycl}.bin`, `draft_vocab*.bin`, `gguf_fingerprints.json`, `quant_quality/v1/` Testsätze, `experimental-speed-projection/` (**Qwen Community License, nicht MIT**) |
-| `third_party/ggml/` | **Kein** vollständiger llama.cpp-Checkout — nur Lizenz-/Versionsmetadaten + `ggml-common.h` |
+| `third_party/ggml/` | **Kein** vollständiger llama.cpp-Checkout — nur Lizenz-/Versionsmetadaten + `ggml-common.h` (Forwarder auf `strata-ggml/strata-quant-common.h`) |
+| `third_party/strata-ggml/` | **Engine-ggml** (vendored, Pin `3cf03257…`): getrimmtes ggml (base/cpu/cuda) + `ggml-cuda-tq` (Trellis-Typen), Manifest in `UPSTREAM.md` |
+| `third_party/strata-llama/` | **Vision-llama.cpp** (vendored, gleicher Pin): llama/mtmd/ggml-Untermenge für `strata-vision` (`LLAMA_DIR`-Default) |
+| `third_party/strata-gguf-py/` | **gguf-py** (vendored): Pack-/Konverter-Abhängigkeit der `tools/` |
+| `third_party/stb/` | `stb_image.h` (vendored, Manifest) |
+| `third_party/llama.cpp/` | **nur bei Bedarf** (`STRATA_GGML_DIR`-Override/Dev): voller Checkout via `fetch_llamacpp.sh` — nicht Teil des Standard-Builds |
 
 Build-Targets: `strata`, `strata-vision`, `strata_core`, `strata_kernels`,
 `strata_prefill`, `strata_engine`, Qwen35- und Utility/Test-Targets.
 
-**Offline-Nahtstelle:** `-DSTRATA_GGML_DIR=<lokaler llama.cpp-Checkout>`
-umgeht `FetchContent` (sonst Download zur Configure-Zeit). llama.cpp-Pin:
-`LLAMA_CPP_COMMIT` in `setup.py`; Hash des Commit-Strings bildet den
-Verzeichnisnamen im Cache. **[gemessen/Code]**
+**Offline-Nahtstelle:** der ggml-Quellbaum ist vendored — `STRATA_GGML_DIR`
+leer resolve-t auf `third_party/strata-ggml`; `FetchContent` existiert nicht
+mehr (Netz-Beschaffung zur Configure-Zeit strukturell unmöglich). Pin:
+`LLAMA_CPP_COMMIT` in `setup.py` == `pin:` in den `UPSTREAM.md`-Manifesten;
+per-Datei-Verifikation via `tools/check_vendored.py`. **[gemessen/Code]**
 
 ---
 
@@ -74,8 +80,9 @@ Vulkan-SDK optional (Version + SHA256 gepinnt in `setup.py`).
 
 ### 2.3 Vendored/gestreamte Komponenten
 
-- **llama.cpp** via FetchContent/`STRATA_GGML_DIR`, Commit-Pin `LLAMA_CPP_COMMIT`
-  in `setup.py`.
+- **llama.cpp** vendored als `strata-ggml`/`strata-llama`/`strata-gguf-py`,
+  Commit-Pin `LLAMA_CPP_COMMIT` in `setup.py` == `UPSTREAM.md`-Manifest-Pins;
+  Voll-Checkout nur für `STRATA_GGML_DIR`-Overrides.
 - **Engine-Prebuilt-Archive** via GitHub-Releases (Digest über Runtime-API-Aufruf;
   `STRATA_SKIP_SHA256=1` umgeht den Check komplett; Digest-Fetch-Fehler → Warnung
   statt Abbruch = **Fail-open**). **[Code]**
