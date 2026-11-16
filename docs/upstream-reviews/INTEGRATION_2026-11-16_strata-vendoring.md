@@ -120,8 +120,28 @@ verursacht, kein Metal-Test im LAN möglich → eigener Folgepunkt.
 ## Gates vor Promotion (unverändertes Modell)
 
 - [x] Unabhängiges Review des Diffs — Runde 1: 3 P1 + 5 P2 gefixt; Runde 2: **ship-ready**
-- [ ] Engine-Build auf eris (g++-13-Pflicht!) + Smoke-Inferenz
-- [ ] A/B-Benchmark (erwartbar NO_SIGNAL — Inhalte identisch, nur Layout)
-- [ ] Rollback-Bereitschaft (`previous`-Symlink)
-- [ ] Uranus-Rollout (CUDA-13.0-Pfad explizit!) + Smoke beider Hosts
-- [ ] Doku: UPSTREAM_SYNC_STATUS Rückstand, LOKAL.md, TTT, Trilium
+- [x] Engine-Build auf eris (g++-13-Pflicht!) + Smoke-Inferenz
+- [x] A/B-Benchmark (erwartbar NO_SIGNAL — Inhalte identisch, nur Layout)
+- [x] Rollback-Bereitschaft (`previous`-Symlink)
+- [x] Uranus-Rollout (CUDA-13.0-Pfad explizit!) + Smoke beider Hosts
+- [x] Doku: UPSTREAM_SYNC_STATUS Rückstand, LOKAL.md, TTT, Trilium
+
+## Rollout-Ergebnis 2026-11-16 (Promotion `36e6ab40` auf `main`)
+
+| Gate | eris | uranus |
+|---|---|---|
+| Build | CUDA 12.4 / g++-13, vendored `strata-ggml` | CUDA 13.0 (explizit, PATH-Falle), sm_89, vendored |
+| Deploy-Dir | `36e6ab40-20261116T055530Z` | `36e6ab40-20261116T060230Z` |
+| `manifest.fork_sha` | `36e6ab40` — `make_manifest --verify`: **all match** (3 Artefakte, 29 Deps) | `36e6ab40` — **all match** |
+| Checkout-HEAD | `36e6ab40` (= `origin/main`) | `36e6ab40` (= `origin/main`) |
+| Laufende Binaries | `strata` + `strata-vision` aus Deploy-Dir (`/proc` verifiziert) | beide aus Deploy-Dir (`/proc` verifiziert) |
+| `run.sh` | → `~/git/strata-fork-sync` (kanonisch) | → `~/git/strata-fork-sync` (kanonisch) |
+| Smoke | „Paris", `finish: stop` | „Paris", `finish: stop` |
+| `previous` (Rollback) | `c5d1fae5-20261114T224209Z` | `c5d1fae5-20261114T224154Z` |
+| Health | `ok`, `api_key: true`, recovery idle | `ok`, `api_key: true`, recovery disabled |
+
+A/B (reduziert, 5 Probes je Arm, identische Prompts): Kandidat-Median ~20,9 s vs.
+Baseline ~24,7 s bei hoher Streuung und unterschiedlichen Thinking-Längen →
+**NO_SIGNAL** (kein Leistungsanspruch; Inhalte sind per `check_vendored` hash-identisch).
+Uranus-Service ist **System-Unit** (`sudo -n systemctl restart strata-swift-uranus-r`),
+nicht User-Bus — `XDG_RUNTIME_DIR`-Falle dokumentiert.
