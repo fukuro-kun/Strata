@@ -9,38 +9,8 @@ name: Backend compile checks
 # ggml comes from the vendored third_party/strata-ggml (frozen at llama.cpp's pin), the same tree the release builds use: nothing is downloaded.
 # Architectures are fewer than the release package's (compile time); the flags that decide which sources and defines are built are the release's.
 
+# FORK-GATE: passive upstream reference — manual runs only, pinned to the upstream repo.
 on:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/backends.yml
-      - CMakeLists.txt
-      - CMakePresets.json
-      - cmake/**
-      - src/**
-      - include/**
-      - third_party/**
-      - sycl/**
-      - metal/**
-      - setup.py
-      - packaging/build_cuda_linux.sh
-      - packaging/build_hip_linux.sh
-      - packaging/build_sycl_linux.sh
-  pull_request:
-    paths:
-      - .github/workflows/backends.yml
-      - CMakeLists.txt
-      - CMakePresets.json
-      - cmake/**
-      - src/**
-      - include/**
-      - third_party/**
-      - sycl/**
-      - metal/**
-      - setup.py
-      - packaging/build_cuda_linux.sh
-      - packaging/build_hip_linux.sh
-      - packaging/build_sycl_linux.sh
   workflow_dispatch:
 
 permissions:
@@ -56,6 +26,7 @@ env:
 
 jobs:
   cuda:
+    if: github.repository == 'Niko1221/Strata'
     name: CUDA ${{ matrix.cuda }}
     runs-on: ubuntu-24.04
     timeout-minutes: 120
@@ -93,6 +64,7 @@ jobs:
         run: ccache -s | head -8
 
   hip:
+    if: github.repository == 'Niko1221/Strata'
     name: HIP ROCm 7.2
     runs-on: ubuntu-24.04
     timeout-minutes: 120
@@ -123,6 +95,7 @@ jobs:
         run: ccache -s | head -8
 
   sycl:
+    if: github.repository == 'Niko1221/Strata'
     # The engine needs oneAPI 2026.1 or newer (sycl/include/dpct/util.hpp uses the entangle and chunked_partition extensions, which the
     # 2025.3.2 compiler does not have: it stops at "no member named 'entangle'"; the intel/oneapi-basekit images end at 2025.3), so the
     # compiler comes from Intel's apt repository at a pinned version.
@@ -161,6 +134,7 @@ jobs:
         run: ccache -s | head -8
 
   metal:
+    if: github.repository == 'Niko1221/Strata'
     name: Metal strata
     # the macOS 26 SDK: metal/src/mtl_rt.mm names MTLGPUFamilyMetal4 behind @available (a run-time check); the names must be in the SDK
     runs-on: macos-26

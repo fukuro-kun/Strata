@@ -4,58 +4,8 @@ name: Checks
 # typecheck / test / build.  No GPU, no model and no download of weights.  The config snapshot has its own workflow (snapshot.yml)
 # and the backend compile checks theirs (backends.yml).  Run the same thing by hand:  python tools/check --only <step>
 
+# FORK-GATE: passive upstream reference — manual runs only, pinned to the upstream repo.
 on:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/check.yml
-      - tools/check
-      - requirements*.txt
-      - CMakeLists.txt
-      - CMakePresets.json
-      - cmake/**
-      - src/**
-      - include/**
-      - bench/micro/**
-      - third_party/**
-      - tests/**
-      - serve/**
-      - strata.py
-      - setup.py
-      - strata_cli/**
-      - strata_control/**
-      - tools/**
-      - packaging/**
-      - docker/**
-      - apps/host/**
-      - apps/desktop/**
-      - metal/**
-      - sycl/**
-  pull_request:
-    paths:
-      - .github/workflows/check.yml
-      - tools/check
-      - requirements*.txt
-      - CMakeLists.txt
-      - CMakePresets.json
-      - cmake/**
-      - src/**
-      - include/**
-      - bench/micro/**
-      - third_party/**
-      - tests/**
-      - serve/**
-      - strata.py
-      - setup.py
-      - strata_cli/**
-      - strata_control/**
-      - tools/**
-      - packaging/**
-      - docker/**
-      - apps/host/**
-      - apps/desktop/**
-      - metal/**
-      - sycl/**
   workflow_dispatch:
 
 permissions:
@@ -67,6 +17,7 @@ concurrency:
 
 jobs:
   linux:
+    if: github.repository == 'Niko1221/Strata'
     name: Linux / ${{ matrix.name }}
     runs-on: ubuntu-24.04
     timeout-minutes: 90
@@ -109,6 +60,7 @@ jobs:
           retention-days: 7
 
   windows:
+    if: github.repository == 'Niko1221/Strata'
     name: Windows / ${{ matrix.name }}
     runs-on: windows-2022
     timeout-minutes: 120
@@ -169,6 +121,7 @@ jobs:
           retention-days: 7
 
   macos:
+    if: github.repository == 'Niko1221/Strata'
     # Cheap and useful (the audit found the host and Python fixtures reading the Mac's own paths), but this job has not run on a
     # Mac runner yet: it reports and does not block until its first green run.
     name: macOS / ${{ matrix.name }}
