@@ -60,7 +60,7 @@
     ]
   },
   "sm_86": {
-    "measured_with": "cuobjdump Build cuda_13.2.r13.2/compiler.37953736_0; the guard libraries of the base bb1bdb4da (MMQ on, tests on) compiled for sm_86-real on a CUDA 13.2 box: the same 16 instances and bytes as measured on CUDA 13.1 on an RTX A6000",
+    "measured_with": "cuobjdump Build cuda_13.2.r13.2/compiler.37953736_0; the guard libraries of the base bb1bdb4da (MMQ on, tests on) compiled for sm_86-real on a CUDA 13.2 box: the same 16 instances and bytes as measured on CUDA 13.1 on an RTX A6000; plus 3 dflash2 instances of the 0.1.60 merge, measured on sm_86, CUDA 13.5",
     "instances": [
       {
         "name": "strata::kernels::{anonymous}::gemm4_rows_kernel<2, 2, 2>",
