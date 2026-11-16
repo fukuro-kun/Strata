@@ -410,3 +410,46 @@ die Variable zu Upstreams NaN-Stop-Pfad gehoert, den diese Basis nicht
 enthaelt — er waere ein Kompilierfehler geworden. Damit braucht der
 Kandidat keinen Engine-Neubau; die serverseitige Schutzschicht
 `_swallow_trailing_done` bleibt aktiv.
+
+## Stand 2026-11-16: Integration `baf16363b` (v0.2.14 / engine 0.1.60)
+
+Zweiter Vollmerge seit `c62d5e3a`: **2.132 Upstream-Commits, ~50 Konflikt-Pfade**
+manuell aufgelöst, Branch `feat/sync-2026-11-16-merge-v0214`, Merge-Commit
+`a146dfdf7` mit Review-Fixes bis `fea002cf3`. Die Radar-Kandidaten K2–K4
+(Prefill/q36, serve/-Lifecycle, Restbestand) gingen in einem atomaren Merge
+zusammen durch; die Gate-Kette gilt einmal für den Gesamtstand.
+
+**Gehaltene Fork-Divergenzen:** Acquisition-Default-Deny an allen Netz-
+Primitive; MMQ-Marge mit voller Row-Space-Bound (`T*K`, `(Rt,Rt)`, `(ne,ne)`)
+an allen Callsites — Upstreams engere `max_rows <= T`-Semantik bewusst
+nicht übernommen; Engine-Auto-Recovery vollständig (upstream hat kein
+Äquivalent); DSV41-Stack mit Upstream entfernt (Fork ist Qwen-only);
+kein FetchContent im Default-Build-Pfad.
+
+**Gates (alle bestanden):** statische Prüfung (keine Marker/Doppel-Defs/
+ds_pictures-Referenzen/FetchContent-Default), Python serve-Suite komplett
+grün (inkl. Fork-Recovery- und Telemetrie-Fixes), `tools.test_setup_engine_hash`
+30/30 (pre-existing Acquisition-Fix), `mmq_ids_margin_test` ok, hydra-Build
+0.1.60.1 (CUDA 13.5, ggml-Pin `3cf03257`), 25/25 Merge-relevante C++/CUDA-
+Tests, `cuda_spill_guard` grün (3 neue dflash2-Instanzen exakt gemessen in
+die sm_86-Baseline aufgenommen), eris-Build (g++-13, CUDA 12.4) grün,
+eris-Deploy `e6cdef3a-*` (Manifest `--verify` all match), Smoke ok.
+
+**A/B (eris, 5 gepaarte Runden + Probeläufe, eingefrorener Plan/Payloads):
+NO_SIGNAL** — t1_4k B +38.9 % unter Rauschen 53 %, t1_16k −3.3 % unter
+Rauschen 27.7 %, t2_decode −9.5 % unter Rauschen 46.9 %; T3-Delivery 25/25
+auf beiden Armen inkl. Tool-Call-Assertion. Hohe Varianz ist Befund, kein
+Fehler: Prefill ist auf dieser Config expert-I/O-bound, der erste große
+Prompt nach Restart dominiert die Streuung. Kein Regressions-Signal → keine
+Promotions-Sperre.
+
+**Review:** unabhängig in drei Runden — R1 (P1 Publish-Doppelblock +
+loopback/`urlopen` + Guards gefixt in `78bd00cc1`), R2 (P1 Degenerate-
+Testfall korrigiert in `2eb4d055b`, Rest ship-ready), Tail-Review
+`b95c3372e`+`e6cdef3af` ship-ready mit P3-Nachzug `fea002cf3`.
+
+**Offen/Nachzug:** uranus (sm_89) ausgeschaltet — kontrollierter Nachzug
+beim Wiederanlauf mit CUDA 13.0/sm_89-Build; dort kann `cuda_spill_guard`
+die drei neuen dflash2-Instanzen erstmalig messen (sm_89-Allowance deckt
+die Familie nur mit 8 B, gemessen wurden 16 B auf sm_86). Promotion auf
+`main` und Deploy-Abschluss siehe `INTEGRATION_2026-11-16_strata-v0214-merge.md`.

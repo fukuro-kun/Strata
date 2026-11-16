@@ -59,8 +59,11 @@ Gesamtstand.
 | hydra-Build | `strata` 0.1.60.1 + `strata-vision`, CUDA 13.5 native, `ggml_commit=3cf03257`, `check_vendored: ok` |
 | Merge-relevante C++/CUDA-Tests (25) | **alle grün** (~42 Min): prefill_plan, q36_context_fit, q36_prompt_route, routed_stream, mmq_ids_margin, gp100_prompt_default, prefill_fused_{moe,iq,q36}+Varianten (sm75/ws arch-Skips) |
 | `cuda_spill_guard` | grün — 3 neue dflash2-Kernel-Instanzen in sm_86-Baseline aufgenommen (gemessen: 8/16/16 B stack; `_SM89_ALLOWED` deckt Familie, sm_86-Instanzen dokumentiert) |
-| eris-Build (g++-13, CUDA 12.4) | _läuft_ |
-| eris-Deploy + Smoke + A/B | _offen_ |
+| eris-Build (g++-13, CUDA 12.4) | **grün** — `strata` + `strata-vision` (290 Schritte), `ggml_commit=3cf03257`, `check_vendored: ok` |
+| eris-Deploy | `e6cdef3a-20261116T181951Z`, Manifest `--verify`: 3 Artefakte + 29 Deps all match, `run.sh` kanonisch (`strata-fork-sync`), `previous`→`36e6ab40` |
+| Smoke (eris, produktiv) | „Paris", `stop`; prompt 57.5 t/s, decode 41.1 t/s, Draft-Acc 26/33; `engine_recovery` aktiv |
+| A/B (eris, 5 gepaarte Runden + Probe je Arm) | **NO_SIGNAL** — t1_4k 115.6 vs 83.2 t/s (Rauschen 53 %), t1_16k 223.5 vs 231.1 (−3.3 %), t2 35.2 vs 38.9 (−9.5 %); T3 25/25 Turns OK beide Arme inkl. Tool-Call-Assertion; hohe Varianz: Prefill ist expert-I/O-bound, erster großer Prompt nach Restart dominiert |
+| Tail-Review (`b95c3372e`, `e6cdef3af`) | **ship-ready** (review-swe): Baseline-Einträge schema-/instanzexakt, kein Over-Coverage; P3-Fix `fea002cf3` (Instanzenzahl 16→19 in `measured_with`) |
 | Promotion + Doku-Abschluss | _offen_ |
 
 ## Hinweise / Restpunkte
@@ -75,4 +78,15 @@ Gesamtstand.
   `strata_cli/launch/*.py` wird nicht gescannt; als Beobachtung vermerkt (Fork-Netz-Guard
   selbst greift zur Laufzeit; Scan-Lücke kosmetisch).
 - Uranus bleibt ausgeschaltet → kein Deploy/Test dort; beim Wiederanlauf kontrollierter
-  Nachzug (CUDA 13.0, sm_89, Manifest+Smoke) nötig.
+  Nachzug (CUDA 13.0, sm_89, Manifest+Smoke) nötig. **Hinweis (Tail-Review):** die drei
+  neuen dflash2-Instanzen sind in `_SM89_ALLOWED` nur mit 8 B Familien-Allowance
+  bedacht, auf sm_86 wurden 16 B gemessen — falls der Merge die sm_89-Stack-Werte
+  verändert hat, schlägt `cuda_spill_guard` auf sm_89 fehl und die Instanzen sind
+  dort ebenfalls gemessen einzutragen.
+- Arm-A-Verifikation nebenbei belegt: die 0.1.55-Engine (`previous`-Deploy) startet
+  unter serve@`e6cdef3af` sauber (ready 21 s, `engine_recovery` aktiv) — die
+  Rollback-Konfiguration ist funktional.
+- A/B-Methodik: beide Arme liefen unter identischem serve-Stand `e6cdef3af`
+  (fork-sync-Checkout) — wie ein realer Rollback; Engine-Binary isoliert.
+  Evidence: `/tmp/ab_v0214_results.jsonl` + `ab_plan.json`/`ab_payloads.py`
+  (SHA eingefroren) auf eris.
