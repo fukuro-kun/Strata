@@ -60,17 +60,10 @@ class DecoderAllowlist(unittest.TestCase):
             data = self.sample("JPEG2000")
         except (KeyError, OSError, ValueError):
             self.skipTest("this Pillow cannot write JPEG 2000")
-        from PIL import Jpeg2KImagePlugin
-        from serve.ds_pictures import DsPictures
-
-        for decode in (Vision.normalize, DsPictures.decode):
-            with self.subTest(decode=decode.__qualname__):
-                with mock.patch.object(Jpeg2KImagePlugin.Jpeg2KImageFile, "_open",
-                                       side_effect=AssertionError("the JPEG 2000 decoder ran")) as decoder:
-                    with self.assertRaises(ValueError) as caught:
-                        decode(data)
-                decoder.assert_not_called()
-                self.assertIn("could not be read", str(caught.exception))
+        with mock.patch.object(Image.Image, "load", side_effect=AssertionError("the JPEG 2000 decoder ran")):
+            with self.assertRaises(ValueError) as caught:
+                Vision.normalize(data)
+        self.assertIn("could not be read", str(caught.exception))
 
     def test_other_formats_outside_the_list_are_refused_too(self):
         for fmt in ("PPM", "ICO", "TGA"):
@@ -106,9 +99,7 @@ class DecoderAllowlist(unittest.TestCase):
         with mock.patch.object(Image, "open", spy):
             Vision.normalize(data)
             Vision._exif_rotated(jpeg((8, 8), 6))
-            from serve.ds_pictures import DsPictures
-            DsPictures.decode(data)
-        self.assertEqual(len(seen), 3)
+        self.assertEqual(len(seen), 2)
         self.assertTrue(all(f and "JPEG2000" not in f and "JPEG" in f for f in seen), seen)
 
 

@@ -10,12 +10,12 @@ import subprocess
 import sys
 import tempfile
 import textwrap
-import threading
 import unittest
 from pathlib import Path
 from unittest import mock
 
 import serve.server as server
+import threading
 
 ALLOC = "ggml_backend_cuda_buffer_type_alloc_buffer: allocating 865.48 MiB on device 0: cudaMalloc failed: out of memory"
 BUFFER = "alloc_tensor_range: failed to allocate CUDA0 buffer of size 907524736"

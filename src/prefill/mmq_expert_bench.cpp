@@ -8,6 +8,7 @@
 // Synthetic weights of the right format (valid scales), random activations of row-varying magnitude.  Per product:
 // the median of 25 runs, and the rate in int8-equivalent TOPS (2 x rows x out x in).  Default R: 12 (a 600-token
 // chunk: 600 x 10 / 512), 160 (8K), 626 (32K).
+#include "strata/prefill/mmq_ids_margin.hpp"
 #include "strata/prefill/moe_mmq.hpp"
 
 #include "ggml.h"
@@ -74,7 +75,7 @@ double run_case(const Case& c, int R, std::mt19937& rng, float* ms_out) {
     ck(cudaMalloc(&dq, mmq::q8_bytes(T, c.cols)), "xq");
     ck(cudaMalloc(&dys, (size_t) T * 4), "ys");
     ck(cudaMalloc(&dd, (size_t) T * c.rows * 4), "dst");
-    const uint64_t ids_rows = mmq::mmq_ids_table_rows((uint64_t) T, (uint64_t) R);
+    const uint64_t ids_rows = mmq::mmq_ids_table_rows((uint64_t) T, (uint64_t) R);   // (mul_mat_q reads the row table past its last row: mmq_ids_margin.hpp)
     if (ids_rows == 0) { std::fprintf(stderr, "MMQ row table does not fit\n"); std::exit(1); }
     ck(cudaMalloc(&dids, (size_t) ids_rows * sizeof(int32_t)), "ids");
     ck(cudaMalloc(&db, (E + 1) * 4), "bounds");

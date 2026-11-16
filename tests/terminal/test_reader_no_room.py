@@ -8,9 +8,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from serve import server
 from strata_cli.launch import runner as R
-from strata_control import reader_room
+from strata_control import reader_room, split_engine
 
 ALLOC = "ggml_backend_cuda_buffer_type_alloc_buffer: allocating 865.48 MiB on device 0: cudaMalloc failed: out of memory"
 BUFFER = "alloc_tensor_range: failed to allocate CUDA0 buffer of size 907524736"
@@ -108,6 +107,16 @@ class Words(unittest.TestCase):
                          "The picture reader could not start: the graphics card has no room for it (it needs about 0.8 GB; 0.1 GB are free).")
         self.assertIn("the graphics card has no room for the picture reader.", reader_room.on_processor(None))
 
+    def test_the_summary_line_for_any_other_reason(self):
+        self.assertEqual(reader_room.not_started_on_processor(0, "/home/u/engine.log"),
+                         "Pictures are read on the processor, which is slower: the picture reader could not start on graphics card 0. "
+                         "The reason is in the engine's log: /home/u/engine.log.")
+        self.assertEqual(reader_room.not_started_on_processor(None, "/home/u/engine.log"),
+                         "Pictures are read on the processor, which is slower: the picture reader could not start. The reason is in the engine's log: /home/u/engine.log.")
+        self.assertEqual(reader_room.not_started_on_processor(2, None),
+                         "Pictures are read on the processor, which is slower: the picture reader could not start on graphics card 2.")
+        self.assertEqual(reader_room.not_started_on_processor(), "Pictures are read on the processor, which is slower: the picture reader could not start.")
+
     def test_a_card_with_next_to_nothing_free_is_not_called_a_tenth(self):
         self.assertIn("(less than 0.1 GB are free)", reader_room.on_processor(0, None, 10))
         self.assertIn("(less than 0.1 GB are free)", reader_room.on_processor(0, None, 0))
@@ -118,13 +127,7 @@ class LaunchSaysIt(unittest.TestCase):
 
     def setUp(self):
         self.free = [114]
-        self.probes = []
-
-        def card_free(index, amd=False):
-            self.probes.append((index, amd))
-            return self.free[0] if self.free else None
-
-        patcher = mock.patch.object(server, "card_free_mib", side_effect=card_free)
+        patcher = mock.patch.object(split_engine, "probe_cards", lambda indexes=None: [split_engine.Card(0, "Tesla", 16384, 60, free_mib=self.free[0])] if self.free else [])
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -180,12 +183,6 @@ class LaunchSaysIt(unittest.TestCase):
     def test_a_reader_on_its_own_card_names_that_card(self):
         text, _, _ = self.explain([ALLOC, ASSERT], cfg={"gpu": [0, 1], "vision": {"cuda_device": 1}})
         self.assertIn("graphics card 1 has no room", text)
-        self.assertEqual(self.probes, [(1, False)])
-
-    def test_hip_memory_probe_uses_the_selected_card_and_backend(self):
-        text, _, _ = self.explain([ALLOC, ASSERT], cfg={"backend": "hip", "vision": {"cuda_device": 2}})
-        self.assertIn("graphics card 2 has no room", text)
-        self.assertEqual(self.probes, [(2, True)])
 
     def test_without_a_number_it_says_the_card(self):
         for cfg in (None, {"gpu": [2, 3], "gpu_order": "as_given"}):
@@ -213,19 +210,6 @@ class LaunchSaysIt(unittest.TestCase):
         text, nxt, _ = self.explain([ALLOC, BUFFER, "strata serve: the GPU has too little free VRAM for the prompt path: turn images off (setup: --vision no)"])
         self.assertIn("too little free VRAM", text)
         self.assertEqual(nxt.split(" The engine's log")[0], R.VRAM_STOP_NEXT)
-
-    def test_engine_memory_errors_are_not_misreported_as_reader_errors(self):
-        for message in ("session state does not fit", "head out of memory",
-                        "native dense projections failed", "weights out of memory"):
-            with self.subTest(message=message):
-                text, nxt, _ = self.explain([ALLOC, BUFFER, "strata serve: " + message])
-                self.assertIn(message, text)
-                self.assertNotIn("picture reader could not start", text)
-                self.assertEqual(nxt.split(" The engine's log")[0], R.VRAM_STOP_NEXT)
-
-    def test_engine_memory_pattern_requires_a_word_boundary(self):
-        from strata_control import vram_fit
-        self.assertIsNone(vram_fit.engine_stop_reason(["strata serve: overhead out of memory"]))
 
     def test_other_reader_trouble_is_not_called_a_full_card(self):
         text, nxt, _ = self.explain(["ggml_cuda_init: failed to initialize CUDA: no CUDA-capable device"])

@@ -15,7 +15,7 @@ from __future__ import annotations
 import collections
 import ctypes
 import os
-import platform
+from strata_control import sysinfo
 import re
 import subprocess
 import sys
@@ -455,8 +455,8 @@ def _cpu_topology(root: str = "/sys/devices/system"):
         packages = set()
         for f in glob.glob(os.path.join(root, "cpu", "cpu[0-9]*", "topology", "physical_package_id")):
             try:
-                with open(f, encoding="utf-8") as package:
-                    packages.add(package.read().strip())
+                with open(f, encoding="utf-8") as fh:
+                    packages.add(fh.read().strip())
             except OSError:
                 continue
         nodes = len(glob.glob(os.path.join(root, "node", "node[0-9]*")))
@@ -475,15 +475,15 @@ def _cpu_name():
             pass
     elif os.path.exists("/proc/cpuinfo"):
         try:
-            with open("/proc/cpuinfo", encoding="utf-8", errors="replace") as info:
-                for line in info:
+            with open("/proc/cpuinfo", encoding="utf-8", errors="replace") as fh:
+                for line in fh:
                     if line.startswith("model name"):
                         _, sep, value = line.partition(":")
                         if sep:
                             return value.strip()
         except OSError:
             pass
-    return platform.processor() or None
+    return sysinfo.processor() or None
 
 
 class _CpuRamFallback:
@@ -499,8 +499,8 @@ class _CpuRamFallback:
                 return idle.value, kern.value + user.value           # kernel time includes idle
             return None
         try:
-            with open("/proc/stat") as stat:
-                f = [int(x) for x in stat.readline().split()[1:]]
+            with open("/proc/stat") as fh:
+                f = [int(x) for x in fh.readline().split()[1:]]
             return f[3] + f[4], sum(f)
         except (OSError, ValueError, IndexError):
             return None
@@ -527,8 +527,8 @@ class _CpuRamFallback:
                 return m.ullTotalPhys - m.ullAvailPhys, m.ullTotalPhys
             return None, None
         try:
-            with open("/proc/meminfo") as meminfo:
-                info = dict(line.split(":", 1) for line in meminfo)
+            with open("/proc/meminfo") as fh:
+                info = dict(line.split(":", 1) for line in fh)
             total = int(info["MemTotal"].split()[0]) * 1024
             avail = int(info["MemAvailable"].split()[0]) * 1024
             return total - avail, total

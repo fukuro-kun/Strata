@@ -21,14 +21,14 @@ class TelemetryFiles(unittest.TestCase):
     def test_cpu_name_faellt_bei_lesefehler_zurueck(self):
         with mock.patch.object(telemetry.os.path, "exists", return_value=True), \
              mock.patch("builtins.open", side_effect=OSError("nicht lesbar")), \
-             mock.patch.object(telemetry.platform, "processor", return_value="Fallback"):
+             mock.patch.object(telemetry.sysinfo, "processor", return_value="Fallback"):
             self.assertEqual(telemetry._cpu_name(), "Fallback")
 
     def test_cpu_name_faellt_bei_unvollstaendiger_zeile_zurueck(self):
         source = io.StringIO("model name ohne Doppelpunkt\n")
         with mock.patch.object(telemetry.os.path, "exists", return_value=True), \
              mock.patch("builtins.open", return_value=source), \
-             mock.patch.object(telemetry.platform, "processor", return_value="Fallback"):
+             mock.patch.object(telemetry.sysinfo, "processor", return_value="Fallback"):
             self.assertEqual(telemetry._cpu_name(), "Fallback")
         self.assertTrue(source.closed)
 

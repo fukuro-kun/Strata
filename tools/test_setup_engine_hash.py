@@ -48,6 +48,12 @@ def sha_of(b: bytes) -> str:
     return hashlib.sha256(b).hexdigest()
 
 
+# FORK: the acquisition gate is deny-by-default; these tests exercise the upstream network
+# paths with mocked urlopen, so they run under the reviewed-acquisition flag.
+_env = mock.patch.dict(setup.os.environ, {"STRATA_FORK_ALLOW_ACQUIRE": "1"})
+_env.start()
+
+
 class WhereTheHashComesFrom(unittest.TestCase):
     """`release_of` and `is_local`: which base names a published release, and which is the user's own disk."""
 
@@ -83,7 +89,7 @@ class WhereTheHashComesFrom(unittest.TestCase):
 
     def test_a_local_folder_asks_the_api_nothing_at_all(self):
         # Air-gapped and shared-IP installs must not depend on GitHub answering.
-        with mock.patch.object(setup.urllib.request, "urlopen",
+        with mock.patch.object(setup.netpolicy, "urlopen",
                                side_effect=AssertionError("the API was called")):
             self.assertIsNone(setup.engine_digest(ASSET, LOCAL_BASE))
 
@@ -119,7 +125,7 @@ class DigestLookup(unittest.TestCase):
             seen.append(req.full_url)
             return R(payload)
 
-        patcher = mock.patch.object(setup.urllib.request, "urlopen", open_it)
+        patcher = mock.patch.object(setup.netpolicy, "urlopen", open_it)
         patcher.start()
         self.addCleanup(patcher.stop)
         return seen
@@ -164,7 +170,7 @@ class DigestLookup(unittest.TestCase):
 
     def test_none_when_github_cannot_be_reached(self):
         for exc in (OSError("no network"), TimeoutError("slow")):
-            with mock.patch.object(setup.urllib.request, "urlopen", side_effect=exc):
+            with mock.patch.object(setup.netpolicy, "urlopen", side_effect=exc):
                 self.assertIsNone(setup.engine_digest(ASSET, TAG_BASE), exc)
 
     def test_picks_the_asset_the_url_actually_wants(self):
