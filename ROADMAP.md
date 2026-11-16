@@ -140,6 +140,12 @@ Fork-Korrekturen aus der Gegenprüfung (Watchdog-Done-Flag `ccf4d0a1`,
 Vision-Cache-Lock `6ef6931a`). Review:
 `docs/upstream-reviews/REVIEW_2026-10-22_6ef6931adba1.md` (SAUBER).
 
+**Sync-Stand 2026-11-16:** Vollmerge `baf16363b` (v0.2.14 / engine 0.1.60,
+2.132 Commits) als `a146dfdf7` + Fixes bis `fea002cf3` auf `main`
+(`42d43ed96`) und auf eris deployed; uranus-Nachzug beim Wiederanlauf
+(Host aus). Radar-Delta `13eedf55..baf16363b` damit vollständig
+integriert. Report: `docs/upstream-reviews/INTEGRATION_2026-11-16_strata-v0214-merge.md`.
+
 ### P5 — Frontend — **ENTSCIEDEN 2026-10-17: No-Go für Robert**
 
 Evaluierung in `docs/P5_ROBERT_FRONTEND_EVAL.md`; fukuro hat die
