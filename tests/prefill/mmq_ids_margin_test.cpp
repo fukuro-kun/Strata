@@ -46,7 +46,7 @@ int main() {
     // the prompt helper is the whole T*K row space, not a per-expert bound (FORK: layer-major routing can give
     // one expert more than T rows; the bound must not depend on that invariant)
     CHECK(mmq_prompt_ids_table_rows(3072, 10) == mmq_ids_table_rows(30720, 30720));
-    CHECK(mmq_prompt_ids_table_rows(0, 0) == mmq_ids_table_rows(0, 0));
+    CHECK(mmq_prompt_ids_table_rows(0, 0) == 0);   // experts_per_token == 0 is invalid
 
     // checked arithmetic: nothing wraps to a small table
     m = 77;
