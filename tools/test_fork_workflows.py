@@ -15,9 +15,23 @@ GUARD = "github.repository == 'Niko1221/Strata'"
 
 # job name -> exact expected `if:` text (upstream condition preserved in parentheses)
 EXPECTED = {
+    "backends.yml": {
+        "cuda": GUARD,
+        "hip": GUARD,
+        "sycl": GUARD,
+        "metal": GUARD,
+    },
+    "check.yml": {
+        "linux": GUARD,
+        "windows": GUARD,
+        "macos": GUARD,
+    },
     "docker-images.yml": {
         "plan": GUARD,
         "image": GUARD,
+    },
+    "docs.yml": {
+        "docs": GUARD,
     },
     "intake.yml": {
         "check": GUARD + " && (github.event_name == 'issues' || "
@@ -34,6 +48,9 @@ EXPECTED = {
     },
     "scripts-test.yml": {
         "node-test": GUARD,
+    },
+    "snapshot.yml": {
+        "snapshot": GUARD,
     },
     "terminal-minimal-server.yml": {
         "fake-engine": GUARD,

@@ -64,7 +64,21 @@ Gesamtstand.
 | Smoke (eris, produktiv) | „Paris", `stop`; prompt 57.5 t/s, decode 41.1 t/s, Draft-Acc 26/33; `engine_recovery` aktiv |
 | A/B (eris, 5 gepaarte Runden + Probe je Arm) | **NO_SIGNAL** — t1_4k 115.6 vs 83.2 t/s (Rauschen 53 %), t1_16k 223.5 vs 231.1 (−3.3 %), t2 35.2 vs 38.9 (−9.5 %); T3 25/25 Turns OK beide Arme inkl. Tool-Call-Assertion; hohe Varianz: Prefill ist expert-I/O-bound, erster großer Prompt nach Restart dominiert |
 | Tail-Review (`b95c3372e`, `e6cdef3af`) | **ship-ready** (review-swe): Baseline-Einträge schema-/instanzexakt, kein Over-Coverage; P3-Fix `fea002cf3` (Instanzenzahl 16→19 in `measured_with`) |
-| Promotion + Doku-Abschluss | _offen_ |
+| Promotion | `main` → `7527614b4` (+ Fork-Gate-Fix `b53b531bf`) gepusht; eris `fork-sync` auf `main` |
+| uranus-Nachzug | _läuft_ (Host wieder online; Build CUDA 13.0/sm_89 in `fork-sync`) |
+
+## Merge-Nachzug (post-Promotion): Workflow-Fork-Gate
+
+Vier mit dem Merge neu eingezogene Workflow-Dateien (`backends.yml`, `check.yml`,
+`docs.yml`, `snapshot.yml`) trugen Upstreams `push:`/`pull_request:`-Trigger **ohne**
+`Niko1221/Strata`-Repo-Gate — Verstoß gegen die Fork-Workflow-Grenze; auf dem
+öffentlichen Mirror hätten sie ungeprüfte Upstream-CI bei jedem Push gestartet.
+Befund durch nachträglichen Sweep, **nicht** durch die Merge-Prüfung (Lücke:
+Workflow-Dateien gingen konfliktfrei durch, kein Gate-Scan im Prozess).
+Fix `b53b531bf`: alle vier auf `workflow_dispatch` reduziert + `if:
+github.repository == 'Niko1221/Strata'` je Job; Voll-Sweep über alle 12
+Workflows verifiziert konform. **Prozess-Nachzug:** künftige Merges brauchen
+einen expliziten `.github/workflows`-Gate-Scan vor Promotion.
 
 ## Hinweise / Restpunkte
 
