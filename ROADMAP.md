@@ -69,9 +69,10 @@ Evidenz-Ablage (Bewusst nicht committed — Repo-Regel).
       Voll-Checkout optional via `tools/offline/fetch_llamacpp.sh` (nur
       `STRATA_GGML_DIR`-Override-Builds)
       (LAN-Kopie, byte-identisch zu zwei Produktiv-Bäumen verifiziert)
-- [x] Fail closed: CMake `FATAL_ERROR` bei leerem `STRATA_GGML_DIR` (Escape:
-      `-DSTRATA_ALLOW_GGML_FETCH=ON`); Skript bricht bei fehlendem Input/Pin-
-      Mismatch ab — live getestet
+- [x] Fail closed: **kein** FetchContent-Pfad mehr — leeres `STRATA_GGML_DIR`
+      resolve-t auf vendored `third_party/strata-ggml` (Netz-Beschaffung zur
+      Configure-Zeit strukturell unmöglich); Skript bricht bei fehlendem
+      Input/Pin-Mismatch ab — live getestet
 - [x] Eigene Engine aus Quellen: `engine/strata` + `strata-vision` +
       `libstrata_kq.so` auf hydra gebaut (CUDA 13.4, sm_86), Smoke-Test ok
 

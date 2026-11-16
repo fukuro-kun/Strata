@@ -84,9 +84,35 @@ Pin überall `3cf03257f219afbe7334045ff7c6a06ac68c627d` == `LLAMA_CPP_COMMIT` (s
   erwartbar durch Layout). Funktionale Äquivalenz = Pin-Identität + erfolgreicher
   Build; belastbarer Beleg folgt über A/B + Smoke auf eris vor Promotion.
 
+## Review-Runde 1 (review-swe, 2026-11-16) — Befunde + Fixes
+
+Unabhängiges Review des Nicht-vendored-Diffs: **3 P1, 5 P2** gefunden, **alle gefixt**:
+
+| # | Befund | Fix |
+|---|---|---|
+| P1-1 | **Metal-Backend gebrochen:** `third_party/ggml/ggml-common.h` ist jetzt ein `#include`-Forwarder, aber `mtl_rt.mm` bettet die Datei als **Rohtext** in die Shader-Quelle ein (kein Include-Resolver) | `metal/CMakeLists.txt` → `GGML_COMMON = strata-quant-common.h`; `build_dsv41_engine.sh` shipt Volltext unter beiden Namen; `gen_grids.sh` liest die echte Datei |
+| P1-2 | `packaging/build_cuda_linux.sh` pinnte `STRATA_GGML_DIR`/`LLAMA_DIR` auf `third_party/llama.cpp` (optionaler Baum) | `-D`-Übergaben entfernt — vendored Defaults greifen |
+| P1-3 | `tools/hip/build_windows.bat` Vision-Fallback `_deps/strata_llamacpp-src` (FetchContent-Überrest) | Fallback → `%SRC%\third_party\strata-llama` |
+| P2-1 | `packaging/build_sycl_linux.sh`: wirkungsloses `FETCHCONTENT_SOURCE_DIR_*` | → `-DSTRATA_GGML_DIR=$LLAMA_CPP` |
+| P2-2 | `spark/build_engine.sh`: impliziter Netz-Fetch via `setup.get_llama_cpp()` + erzwungener Overlay-Pfad | Fetch entfernt (Fork-Policy: nie still beschaffen); `-DSTRATA_GGML_DIR` nur bei gesetztem Override |
+| P2-3 | `build_engine.sh` Stale-Guard verglich Cache-Absolutpfad mit roher Env → Dauer-Vollrebuild bei relativem Override | Vergleich gegen `${STRATA_GGML_DIR:+$GGML_DIR}` — exakt der an Configure übergebene Wert |
+| P2-4 | ROADMAP.md: „FATAL_ERROR + ALLOW_GGML_FETCH" widersprach dem vendored Layout | Text korrigiert |
+| P2-5 | `engram_iq4nl_bench.py`: `_deps/strata_llamacpp-src` existiert nie | `src_root` → `third_party/strata-ggml/ggml` (+ Legacy-Fallback) |
+
+P3-Nachzüge gefixt: python3-Verfügbarkeits-Guard vor `check_vendored.py`, veraltete
+`third_party/llama.cpp`-/`ggml-tq`-Pfade in `fetch_llamacpp.sh`, `tools/vision/CMakeLists.txt`,
+`rope_scaling.hpp` (beide Trees), `docs/GYRO.md`. Historische Referenzen in
+SOLO_SESSION-/DEEPSEEK41-/AMD_HIP-/NVFP4-Doku bleiben als History stehen (P3).
+
+**Nach-Fix-Verifikation:** `bash -n` auf allen geänderten Skripten, `ast.parse` auf den
+Python-Dateien, vollständiger Re-Lauf `build_engine.sh` → Engine + `strata-vision`
+erneut sauber aus den vendored Bäumen (kein Cache-Wipe — Stale-Guard-Fix belegt).
+Der Metal-Befund ist statisch gefixt; ein Metal-Build/Test ist im LAN nicht möglich
+(keine macOS-Hardware) — analog HIP/SYCL als „nicht verfügbar" dokumentiert.
+
 ## Gates vor Promotion (unverändertes Modell)
 
-- [ ] Unabhängiges Review des Diffs (CMake-/Tooling-Edits sind Fork-Code)
+- [x] Unabhängiges Review des Diffs — Runde 1: 3 P1 + 5 P2 gefixt; Reviewer-Verdict nach Fixes: CUDA-Hauptpfad korrekt
 - [ ] Engine-Build auf eris (g++-13-Pflicht!) + Smoke-Inferenz
 - [ ] A/B-Benchmark (erwartbar NO_SIGNAL — Inhalte identisch, nur Layout)
 - [ ] Rollback-Bereitschaft (`previous`-Symlink)

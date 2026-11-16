@@ -33,14 +33,14 @@ last=$(echo "$archs" | tr ';,' '  ' | awk '{print $NF}')
 cd "$repo"
 cmake -G Ninja -S . -B "$build" -DCMAKE_BUILD_TYPE=Release -DSTRATA_ENABLE_CUDA=ON -DSTRATA_BUILD_TESTS=OFF \
     -DSTRATA_EXPERIMENTAL_SM60=$sm60 -DSTRATA_NATIVE_EXPERTS=ON -DSTRATA_PORTABLE=ON -DSTRATA_Q6K_EXPERTS=ON -DSTRATA_MMQ_KQUANTS=ON \
-    "-DCMAKE_CUDA_ARCHITECTURES=${real};${last}-virtual" -DSTRATA_GGML_DIR="$repo/third_party/llama.cpp"
+    "-DCMAKE_CUDA_ARCHITECTURES=${real};${last}-virtual"
 cmake --build "$build" --target strata strata_kq -j "$(nproc)"
 
 # The picture reader is built for the SAME architectures as the engine (#3669: a reader reused from an older build had no sm_60, and on
 # a Pascal card the engine ran while the reader died with "device kernel image is invalid"). BUILD_VISION=0 ships a text-only package.
 vision_dir=${BUILD_VISION_DIR:-$repo/build-vision-$variant}
 if [ "${BUILD_VISION:-1}" = 1 ]; then
-  cmake -G Ninja -S tools/vision -B "$vision_dir" -DCMAKE_BUILD_TYPE=Release -DLLAMA_DIR="$repo/third_party/llama.cpp" \
+  cmake -G Ninja -S tools/vision -B "$vision_dir" -DCMAKE_BUILD_TYPE=Release \
       -DSTRATA_VISION_CUDA=ON -DSTRATA_PORTABLE=ON -DGGML_CUDA_NCCL=OFF "-DCMAKE_CUDA_ARCHITECTURES=${real};${last}-virtual"
   cmake --build "$vision_dir" --target strata-vision -j "$(nproc)"
 fi

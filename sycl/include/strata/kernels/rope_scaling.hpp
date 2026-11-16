@@ -11,7 +11,7 @@
 //           pairs are interpolated, and the pairs in between blend - plus a magnitude correction
 //           `mscale` that keeps the attention temperature where training put it
 //
-// THE MATH IS GGML'S, TRANSCRIBED, NOT RE-DERIVED.  `third_party/llama.cpp` is vendored and is the
+// THE MATH IS GGML'S, TRANSCRIBED, NOT RE-DERIVED.  `third_party/strata-ggml` is vendored and is the
 // numerical contract (the same standing `native_rope.cu` declares): ramp, correction dims, the
 // interpolation mix and the mscale formula below are line-for-line that source, with the MIT
 // attribution at each helper.  The one deliberate deviation is bookkeeping: ggml's device kernel

@@ -94,7 +94,7 @@ If Gyro misbehaves on an RTX 50 card, update the engine.
 **Prompt speed and the ggml build.** The trellis prompt kernels (MMQ) are agentionai's, from their llama.cpp fork (MIT).
 Strata builds against upstream ggml, which does not have them, so it adds them at configure time.
 `cmake/strata_ggml_tq_overlay.cmake` writes a copy of the pinned ggml-cuda headers into the build folder with the
-three trellis types routed like IQ2_XS. The tile loader is the fork's (`third_party/ggml-tq/`). Only Strata's own MMQ
+three trellis types routed like IQ2_XS. The tile loader is the fork's (`third_party/strata-ggml/ggml/src/ggml-cuda-tq/`). Only Strata's own MMQ
 library sees the copy; every other type is compiled from the untouched files. The ready-made engines read Gyro prompts
 through it. If the pinned ggml changes and an anchor of the script no longer matches, the overlay switches itself off
 with a message and prompts take the slower FP16 path. A build against the fork (`-DSTRATA_GGML_DIR=<agentionai/llama.cpp>`)

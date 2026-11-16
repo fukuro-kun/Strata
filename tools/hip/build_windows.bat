@@ -90,7 +90,7 @@ set "VISION_ARGS="
 if not defined STRATA_VISION_HIP_ARCHS set "STRATA_VISION_HIP_ARCHS=%STRATA_HIP_ARCHS%"
 if not "%STRATA_NO_VISION%"=="1" (
   set "LLAMA=%STRATA_GGML_DIR%"
-  if not defined LLAMA set "LLAMA=%BUILD_DIR%\_deps\strata_llamacpp-src"
+  if not defined LLAMA set "LLAMA=%SRC%\third_party\strata-llama"
   set "LLAMA=!LLAMA:\=/!"
   if not exist "!LLAMA!/tools/mtmd" (echo llama.cpp with tools/mtmd not found in !LLAMA! - set STRATA_GGML_DIR & exit /b 1)
   if not exist "%SRC%\build-vision-cpu-win\build.ninja" (

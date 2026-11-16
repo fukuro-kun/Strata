@@ -38,7 +38,7 @@ iccver=$(icpx --version | sed -n 's/.*Compiler \([0-9][0-9.]*\).*/\1/p' | head -
 
 cd "$repo"
 ggml=""
-if [ -n "${LLAMA_CPP:-}" ]; then ggml="-DFETCHCONTENT_SOURCE_DIR_STRATA_LLAMACPP=$LLAMA_CPP -DFETCHCONTENT_FULLY_DISCONNECTED=ON"
+if [ -n "${LLAMA_CPP:-}" ]; then ggml="-DSTRATA_GGML_DIR=$LLAMA_CPP"
 elif [ -d "$repo/third_party/llama.cpp/ggml" ]; then ggml="-DSTRATA_GGML_DIR=$repo/third_party/llama.cpp"; fi
 # shellcheck disable=SC2086
 cmake -S sycl -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx \

@@ -54,7 +54,10 @@ cp "$ROOT"/metal/kernels/*.metal "$STAGE/metal/kernels/"
 for f in ds4_init ds4_iq ds4_mm ds4_quant mtp mtp_chain ple; do
   cp "$ROOT/metal/src/engine/msl/$f.metal" "$STAGE/metal/src/engine/msl/" || exit 1
 done
-cp "$ROOT/third_party/ggml/ggml-common.h" "$STAGE/metal/"
+# Metal embeds the header text at runtime: ship the real strata-quant-common.h text, also under the
+# beside-exe name the resource() lookup uses (ggml-common.h is only a forwarder since the vendored layout)
+cp "$ROOT/third_party/strata-ggml/strata-quant-common.h" "$STAGE/metal/strata-quant-common.h"
+cp "$ROOT/third_party/strata-ggml/strata-quant-common.h" "$STAGE/metal/ggml-common.h"
 
 python3 "$ROOT/packaging/package_engine.py" --src "$STAGE" --backend metal --version "$VERSION" \
   --platform macos-arm64 --arch apple-gpu --entrypoint strata-dsv41 --build-id "$BUILD_ID" --no-picture-reader --include 'metal/**' --out "$OUT" || exit 1

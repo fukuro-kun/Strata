@@ -88,6 +88,7 @@ export GIT_NO_LAZY_FETCH=1
 PROOF=0
 if [ "$GGML_DIR" = "$REPO_ROOT/third_party/strata-ggml" ]; then
   # vendored tree: the manifest verifier hashes every file against the declared pin
+  command -v python3 >/dev/null 2>&1 || die "python3 not found — required for tools/check_vendored.py"
   VOUT="$(python3 tools/check_vendored.py)" || die "tools/check_vendored.py failed: $VOUT"
   echo "$VOUT" | grep -q "strata-ggml: .*pin ${LLAMA_CPP_COMMIT:0:9}" \
     || die "strata-ggml manifest pin does not match $LLAMA_CPP_COMMIT"
@@ -200,7 +201,9 @@ if [ -f "$BUILD_DIR/CMakeCache.txt" ]; then
   cache_get() { grep -m1 "^$1:" "$BUILD_DIR/CMakeCache.txt" | cut -d= -f2-; }
   want_cuda="OFF"; [ "$CUDA" != off ] && want_cuda="ON"
   stale=0
-  [ "$(cache_get STRATA_GGML_DIR)"    = "${STRATA_GGML_DIR:-}"  ] || stale=1
+  # the cache stores the RESOLVED absolute path ($GGML_DIR) when an override is
+  # set, empty otherwise — compare against exactly what configure receives
+  [ "$(cache_get STRATA_GGML_DIR)"    = "${STRATA_GGML_DIR:+$GGML_DIR}"  ] || stale=1
   [ "$(cache_get STRATA_ENABLE_CUDA)" = "$want_cuda" ] || stale=1
   if [ "$CUDA" != off ]; then
     [ "$(cache_get CMAKE_CUDA_COMPILER)" = "$NVCC_REAL" ] || stale=1

@@ -5,7 +5,9 @@
 # the llama.cpp source. It is a deliberate, documented, one-time procurement
 # step — never invoked automatically by build/start/calibration paths.
 # The result lands at third_party/llama.cpp (gitignored, reserved path) with a
-# .strata-pin marker; tools/offline/build_engine.sh refuses to run without it.
+# .strata-pin marker. Only needed for -DSTRATA_GGML_DIR=<tree> override builds
+# (review/comparison) — the standard build uses the vendored third_party/strata-*
+# trees and needs no fetched tree at all.
 #
 # Sources (in order of preference):
 #   --from-dir <path>   copy an existing verified tree (e.g. rsync'd from a LAN

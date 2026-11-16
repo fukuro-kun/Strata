@@ -27,7 +27,9 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 set(CMAKE_OBJCXX_FLAGS_RELEASE "-O2")
 
 get_filename_component(STRATA_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
-set(GGML_COMMON "${STRATA_ROOT}/third_party/ggml/ggml-common.h")
+# the Metal runtime embeds the header's TEXT into the shader source (no #include resolution) —
+# it must point at the real text, not the third_party/ggml/ggml-common.h forwarder
+set(GGML_COMMON "${STRATA_ROOT}/third_party/strata-ggml/strata-quant-common.h")
 
 # ---- the kernel tree (mac-kern) ------------------------------------------------------------------------------------
 add_library(mtl_rt STATIC src/mtl_rt.mm src/ref_quant.cpp src/gguf_lite.cpp)
