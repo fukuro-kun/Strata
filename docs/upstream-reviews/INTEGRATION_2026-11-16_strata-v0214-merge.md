@@ -64,8 +64,8 @@ Gesamtstand.
 | Smoke (eris, produktiv) | „Paris", `stop`; prompt 57.5 t/s, decode 41.1 t/s, Draft-Acc 26/33; `engine_recovery` aktiv |
 | A/B (eris, 5 gepaarte Runden + Probe je Arm) | **NO_SIGNAL** — t1_4k 115.6 vs 83.2 t/s (Rauschen 53 %), t1_16k 223.5 vs 231.1 (−3.3 %), t2 35.2 vs 38.9 (−9.5 %); T3 25/25 Turns OK beide Arme inkl. Tool-Call-Assertion; hohe Varianz: Prefill ist expert-I/O-bound, erster großer Prompt nach Restart dominiert |
 | Tail-Review (`b95c3372e`, `e6cdef3af`) | **ship-ready** (review-swe): Baseline-Einträge schema-/instanzexakt, kein Over-Coverage; P3-Fix `fea002cf3` (Instanzenzahl 16→19 in `measured_with`) |
-| Promotion | `main` → `7527614b4` (+ Fork-Gate-Fix `b53b531bf`) gepusht; eris `fork-sync` auf `main` |
-| uranus-Nachzug | _läuft_ (Host wieder online; Build CUDA 13.0/sm_89 in `fork-sync`) |
+| Promotion | `main` → `7527614b4` (+ Fork-Gate-Fix `b53b531bf`, Guard-Test `1c125e609`, Docs `005a3c615`) gepusht |
+| uranus-Nachzug | **grün** — Build `fork-sync`@`7527614b4` (sm_89, CUDA 13.0 explizit, vision cpu) → Deploy `7527614b-20261116T192152Z`, Manifest all match, `previous`→`36e6ab40`; System-Unit `strata-swift-uranus-r` restart, ready 40 s, Smoke „Paris"/stop (98.2/54.2 t/s); `engine_recovery` dort per Config disabled (Soll). `test_fork_workflows` 5/5 auch auf uranus |
 
 ## Merge-Nachzug (post-Promotion): Workflow-Fork-Gate
 
