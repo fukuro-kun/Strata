@@ -43,6 +43,10 @@ int main() {
     CHECK(mmq_ids_margin_rows(3072, 8, &m) && m == 3080);
     CHECK(mmq_ids_table_rows(30720, 3072) == 30720 + 3200);
     CHECK(mmq_ids_table_rows(0, 0) == 128);
+    // the prompt helper is the whole T*K row space, not a per-expert bound (FORK: layer-major routing can give
+    // one expert more than T rows; the bound must not depend on that invariant)
+    CHECK(mmq_prompt_ids_table_rows(3072, 10) == mmq_ids_table_rows(30720, 30720));
+    CHECK(mmq_prompt_ids_table_rows(0, 0) == mmq_ids_table_rows(0, 0));
 
     // checked arithmetic: nothing wraps to a small table
     m = 77;

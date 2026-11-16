@@ -705,7 +705,10 @@ def start_log_marks(log: str | None, offset: int) -> list:
 # still being torn down ("terminate called after throwing an instance of 'rocr::AMD::hsa_exception'", or an exit with
 # nothing in the log).  Such a start is tried again after a short wait (STRATA_START_RETRIES, default 3; 0: never).
 TRANSIENT_START_MARKS = ("hsa_exception", "HSA_STATUS_ERROR", "hsaKmt")
-START_RETRIES = max(0, int(os.environ.get("STRATA_START_RETRIES", "3") or 0))
+try:
+    START_RETRIES = max(0, int(os.environ.get("STRATA_START_RETRIES", "3") or 0))
+except ValueError:                                      # a non-numeric value is ignored, never a start failure
+    START_RETRIES = 3
 
 
 def transient_start_failure(log: str | None, offset: int, elapsed_s: float, rc: int | None = None) -> bool:
@@ -10790,20 +10793,6 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
                   "api_url": f"http://{ready_host}:{bound_port}", "bound_host": a.host, "bound_port": bound_port,
                   "model_id": svc.model, "model_state": "unloaded" if lazy else "ready",
                   "api_state": "ready", "created_at": time.time()}
-    if ready_path is not None:
-        try:
-            ready_file.publish(ready_path, record)
-        except OSError as e:
-            print(f"[strata] could not write ready file ({type(e).__name__})", file=sys.stderr)
-            # Fork fix: den Recovery-Worker ueber denselben Closer-Pfad stoppen wie der normale Shutdown
-            # (Watchdog stop+join vor engine.close, sonst koennte er die schliessende Engine neu spawnen)
-            svc._recovery_stop.set()
-            svc._recovery_wake.set()
-            for close in filter(None, shutdown_closers(httpd, svc, engine, vision, hub)):
-                close()
-            return 6
-    if event_sink is not None:
-        notify_lifecycle("ready", record)
     interrupted = False
     drained = True
     try:

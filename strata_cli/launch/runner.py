@@ -2175,8 +2175,9 @@ class Runner:
         """Say which drafter runs when the engine fell back from the one that was asked for ("Drafting: MTP (DFlash2 didn't fit)"). Best effort."""
         try:
             import urllib.request
+            from strata_control import loopback
             headers = {"Authorization": f"Bearer {self.s.api_key}"} if self.s.api_key else {}
-            with urllib.request.urlopen(urllib.request.Request(f"http://127.0.0.1:{int(self.s.port)}/metrics", headers=headers), timeout=4) as resp:
+            with loopback.urlopen(urllib.request.Request(f"http://127.0.0.1:{int(self.s.port)}/metrics", headers=headers), timeout=4) as resp:
                 info = (json.loads(resp.read().decode("utf-8", "replace")).get("engine") or {})
         except Exception:                                    # noqa: BLE001 - the line is a convenience
             return

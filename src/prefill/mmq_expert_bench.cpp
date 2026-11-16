@@ -75,6 +75,8 @@ double run_case(const Case& c, int R, std::mt19937& rng, float* ms_out) {
     ck(cudaMalloc(&dq, mmq::q8_bytes(T, c.cols)), "xq");
     ck(cudaMalloc(&dys, (size_t) T * 4), "ys");
     ck(cudaMalloc(&dd, (size_t) T * c.rows * 4), "dst");
+    // margin bound: the true per-expert max R (uniform bounds e*R here) - the bench owns its routing,
+    // so the tighter bound is exact (production paths margin the whole row space instead: prefill.cpp)
     const uint64_t ids_rows = mmq::mmq_ids_table_rows((uint64_t) T, (uint64_t) R);   // (mul_mat_q reads the row table past its last row: mmq_ids_margin.hpp)
     if (ids_rows == 0) { std::fprintf(stderr, "MMQ row table does not fit\n"); std::exit(1); }
     ck(cudaMalloc(&dids, (size_t) ids_rows * sizeof(int32_t)), "ids");
