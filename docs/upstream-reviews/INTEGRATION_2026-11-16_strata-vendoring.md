@@ -110,9 +110,16 @@ erneut sauber aus den vendored Bäumen (kein Cache-Wipe — Stale-Guard-Fix bele
 Der Metal-Befund ist statisch gefixt; ein Metal-Build/Test ist im LAN nicht möglich
 (keine macOS-Hardware) — analog HIP/SYCL als „nicht verfügbar" dokumentiert.
 
+**Review-Runde 2 (review-swe, nur Fix-Commit): ship-ready** — alle Runde-1-Befunde
+sauber gefixt verifiziert, keine Commit-Regression. Rest: 4 P2-Kosmetik gefixt
+(gen_grids-Kommentar, Header-Docstrings, toter elif, Einrückung); 1 **pre-existing**
+Verdacht separat notiert: `metal`-Staging legt Engine-Kernels nach `metal/src/engine/msl`,
+`window.cpp`-Lookup sucht `<exe>/metal/engine-msl` — nicht durch diesen Commit
+verursacht, kein Metal-Test im LAN möglich → eigener Folgepunkt.
+
 ## Gates vor Promotion (unverändertes Modell)
 
-- [x] Unabhängiges Review des Diffs — Runde 1: 3 P1 + 5 P2 gefixt; Reviewer-Verdict nach Fixes: CUDA-Hauptpfad korrekt
+- [x] Unabhängiges Review des Diffs — Runde 1: 3 P1 + 5 P2 gefixt; Runde 2: **ship-ready**
 - [ ] Engine-Build auf eris (g++-13-Pflicht!) + Smoke-Inferenz
 - [ ] A/B-Benchmark (erwartbar NO_SIGNAL — Inhalte identisch, nur Layout)
 - [ ] Rollback-Bereitschaft (`previous`-Symlink)

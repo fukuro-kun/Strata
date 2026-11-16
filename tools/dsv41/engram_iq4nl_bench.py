@@ -347,7 +347,7 @@ def build_ggml_dump(build_dir: str, out: str | None = None) -> str:
     # the _deps path only existed while FetchContent populated it
     src_root = os.path.join(os.path.dirname(build_dir), "third_party", "strata-ggml", "ggml")
     if not os.path.isdir(src_root):
-      src_root = os.path.join(build_dir, "_deps", "strata_llamacpp-src", "ggml")
+        src_root = os.path.join(build_dir, "_deps", "strata_llamacpp-src", "ggml")
     lib = os.path.join(build_dir, "ggml", "src", "libggml-base.a")
     for p in (src_root, lib):
         if not os.path.exists(p):
