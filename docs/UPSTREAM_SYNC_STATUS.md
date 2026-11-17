@@ -453,3 +453,33 @@ beim Wiederanlauf mit CUDA 13.0/sm_89-Build; dort kann `cuda_spill_guard`
 die drei neuen dflash2-Instanzen erstmalig messen (sm_89-Allowance deckt
 die Familie nur mit 8 B, gemessen wurden 16 B auf sm_86). Promotion auf
 `main` und Deploy-Abschluss siehe `INTEGRATION_2026-11-16_strata-v0214-merge.md`.
+
+## Stand 2026-11-17: Integration `c77572806` (v0.2.15 / Control 0.1.61)
+
+Tagesdelta 0 — `upstream/main` unveraendert seit dem v0.2.15-Radar; der
+offene Bestand (45 Commits, 121 Dateien) wurde vollstaendig integriert:
+Merge `8d8a35dfa` + Review-Fixes `f98572f68`/`d6718d93c` auf `main`
+(`d6718d93c`), Branch `feat/sync-2026-11-17-v0215`.
+
+**Kein Engine-Delta** (src/ nur MSVC-Test-Enablement, CMakeLists-
+Stempel 0.1.61) → kein Rebuild, keine Engine-Binaries geaendert,
+Leistungs-Gate nicht anwendbar (Korrektheitspaket). Deploy = Checkout-
+Wechsel + Service-Restart auf beiden Hosts; beide ready + Smoke ok.
+
+**Produktionsrelevant:** #5979 bool-Tool-Args (`coerce_value`),
+#6055 stop-drain ohne shutdown-timeout (mit unserem `shutdown_closers`/
+Recovery-Pfad vereinigt), #5601 empty-state-Wait, #5080 MTP-About,
+Drafting-Persistenz (`keep_saved_word`).
+
+**Fixes diesmal:** Update_cmd-Dedupe (Review P1), `feed_models.load`
+an `acquisition.require` gelegt (Review P1), `proc=None`-Guard nach
+dem #4792-Pin (echter pre-existing Bug — Fork-Test gruen), `exit_code`
+proc-Pin (P2), 98 Acquisition-Testluecken per Flag-Konvention geschlossen
+(170/170 updater/drafting, 53/53 mcp, 12/12 no_acquisition).
+
+**Unabhaengige Reviews:** zwei Runden review-swe — R1 needs-fixes
+(2×P1), R2 ship-ready. Report:
+`docs/upstream-reviews/REVIEW_2026-11-17_d6718d93c.md`.
+
+**Offener Upstream-Rueckstand: keiner** — der Fork steht auf dem
+upstream-Tip `c77572806`. Naechster Schritt: taeglicher Radar.

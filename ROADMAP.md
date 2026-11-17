@@ -146,13 +146,16 @@ und auf eris+uranus deployed. Radar-Delta `13eedf55..baf16363b` damit
 vollständig integriert. Report:
 `docs/upstream-reviews/INTEGRATION_2026-11-16_strata-v0214-merge.md`.
 
-**Neuer Rückstand (selber Tag):** Upstream taggte **v0.2.15**
-(`c77572806`, Control 0.1.61, Engine unverändert 0.1.60) — 45 Commits,
-121 Dateien. Kein Engine-Delta; produktionsrelevant sind zwei kleine
-serve-Fixes (bool-Tool-Args #5979, stop-drain #6055), Rest ist
-App-/Launch-/Install-Territorium. Kurz-Radar:
-`docs/upstream-reviews/RADAR_2026-11-16_v0215.md`. Eigener
-Integrationsauftrag beim nächsten Sync-Fenster.
+**Sync-Stand 2026-11-17:** v0.2.15 (`c77572806`, 45 Commits) als Merge
+`8d8a35dfa` + Review-Fixes bis `d6718d93c` auf `main` und auf
+eris+uranus deployed (Python-only, Engine-Binaries unverändert 0.1.60).
+Produktionsrelevante Uebernahmen: bool-Tool-Args #5979, stop-drain
+#6055, empty-state-Wait #5601, Drafting-Persistenz. Zwei Review-Runden
+(ship-ready), dabei echter pre-existing Bug gefixt (proc=None-Guard
+nach #4792-Pin) und `feed_models.load` ans Acquisition-Gate gelegt.
+Radar: `RADAR_2026-11-17T205200Z_c77572806996.md`, Report:
+`docs/upstream-reviews/REVIEW_2026-11-17_d6718d93c.md`.
+**Offener Upstream-Rückstand: keiner** — Fork steht auf upstream-Tip.
 
 ### P5 — Frontend — **ENTSCIEDEN 2026-10-17: No-Go für Robert**
 
