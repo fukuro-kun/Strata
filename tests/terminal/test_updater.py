@@ -23,6 +23,11 @@ from tests.terminal import update_fixture as fx
 PLATFORM = host_platform()
 WINDOWS = os.name == "nt"
 
+# FORK: the acquisition gate is deny-by-default; these tests exercise the upstream update
+# paths with a local fixture feed, so they run under the reviewed-acquisition flag.
+_env = mock.patch.dict(os.environ, {"STRATA_FORK_ALLOW_ACQUIRE": "1"})
+_env.start()
+
 
 class UpdaterCase(unittest.TestCase):
     def setUp(self):

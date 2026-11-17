@@ -26,6 +26,11 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import strata_mcp as M  # noqa: E402
 
+# FORK: the acquisition gate is deny-by-default; the Install tests exercise the upstream
+# installer path with fakes, so they run under the reviewed-acquisition flag.
+_env = mock.patch.dict(os.environ, {"STRATA_FORK_ALLOW_ACQUIRE": "1"})
+_env.start()
+
 FAKE_SETUP = r'''
 import json, sys, time
 from pathlib import Path

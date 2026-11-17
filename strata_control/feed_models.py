@@ -123,6 +123,8 @@ def load(source: str | None = None, *, fetch: bool = True, root=None, trusted: d
     cached = _read_cache(root, trusted)
     if fetch and source:
         try:
+            from strata_control import acquisition
+            acquisition.require("the model feed's list", "the model list refresh")
             got = feedmod.fetch(source, trusted, timeout=timeout, channel="stable", last_sequence=cached.sequence if cached else None,
                                 say=say)
         except feedmod.FeedError as exc:                 # offline, expired, a downgrade, a bad signature: the last verified list stays

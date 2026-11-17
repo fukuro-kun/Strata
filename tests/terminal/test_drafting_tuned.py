@@ -30,6 +30,11 @@ Q5 = "qwen3.8-flash-next-unsloth-ud-q5_k_xl"
 TUNED_BYTES = b"tuned-pack-" * 200_000                      # 2.2 MB, stands in for the 340 MB file
 STOCK_BYTES = b"s" * (2 << 20)
 
+# FORK: the acquisition gate is deny-by-default; these tests exercise the upstream fetch
+# paths with mocked transports, so they run under the reviewed-acquisition flag.
+_env = mock.patch.dict(os.environ, {"STRATA_FORK_ALLOW_ACQUIRE": "1"})
+_env.start()
+
 
 def flag(args, name):
     return args[args.index(name) + 1] if name in args and args.index(name) + 1 < len(args) else None

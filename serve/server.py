@@ -1183,6 +1183,9 @@ class StrataEngine:
                 self.log.close()
             raise
         proc = self.proc                                 # THIS start's process: a close() from another thread may set self.proc to None meanwhile (#4792)
+        if proc is None:                                 # the close won the race before this start could pin its process: the start is dead
+            loading.set()
+            raise EngineDied("the engine was closed while it was starting")
         # the READY read has a timeout (#1317): the lines come from a thread, up to READY, so the rest of the stream
         # stays for _pump (one reader at a time)
         ready_q: queue.Queue = queue.Queue()
