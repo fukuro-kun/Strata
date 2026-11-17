@@ -289,7 +289,9 @@ class StartNeverAcquiresTests(unittest.TestCase):
     def test_update_still_installs(self):
         """The explicit commands keep working: outside a start, the install step runs."""
         installed = []
-        with tempfile.TemporaryDirectory() as prefix, mock.patch.object(sys, "prefix", prefix),                 mock.patch.object(setup, "run", lambda cmd, **k: installed.append([str(c) for c in cmd])):
+        with tempfile.TemporaryDirectory() as prefix, mock.patch.object(sys, "prefix", prefix), \
+                mock.patch.dict(os.environ, {"STRATA_FORK_ALLOW_ACQUIRE": "1"}), \
+                mock.patch.object(setup, "run", lambda cmd, **k: installed.append([str(c) for c in cmd])):
             setup.pip_install(["somepkg==1.0"], "a test package")
         self.assertEqual(len(installed), 1)
         self.assertIn("pip", installed[0])

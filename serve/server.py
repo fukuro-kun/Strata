@@ -1453,10 +1453,11 @@ class StrataEngine:
         return proc is not None and not getattr(self, "ended", False) and proc.poll() is None
 
     def exit_code(self):
-        if self.proc is None:
+        proc = self.proc                                 # read once: close() may set it to None meanwhile (#4792 class)
+        if proc is None:
             return None
         try:
-            return self.proc.wait(timeout=5)
+            return proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
             return None
 
