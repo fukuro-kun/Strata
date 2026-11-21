@@ -138,12 +138,13 @@ follow it whether a person or an agent writes the text. The short version:
   Beschaffung mit `STRATA_FORK_ALLOW_ACQUIRE=1` — niemals produktiv;
   `STRATA_NO_ACQUIRE`/`forbidden()` gewinnen immer. Regeln:
   `docs/OFFLINE_BUILD.md` (Acquisition-Gate).
-- **Workflow-Grenze:** `.github/workflows/*` bleibt passive Upstream-Referenz,
-  keine freigegebene Fork-CI. `on:` darf nur `workflow_dispatch` enthalten:
-  keine automatischen Push-/PR-/Cron-Ablaeufe oder Bots. Jeder Job traegt
-  `if: github.repository == 'Niko1221/Strata'` und bleibt auch bei manueller
-  Ausloesung auf diesem Fork/Mirror gesperrt. Kuenftige Uebernahmen muessen
-  denselben Zustand erhalten; jede Fork-CI braucht ein separates Review.
+- **Workflow-Grenze:** `.github/workflows/*` ist im Fork vollstaendig entfernt
+  (Betriebsregel 2026-11-21: keine automatischen Ablaeufe — Builds, Tests,
+  Installationen laufen manuell oder durch Agents). Upstream bringt die
+  Dateien bei jedem Merge erneut mit: danach `git rm` auf `.github/workflows`
+  (modify/delete-Konflikt -> delete). `tools/test_fork_workflows.py` schlaegt
+  fehl, sobald eine Workflow-Datei existiert. Jede künftige Fork-CI braucht
+  ein separates Review.
 - Freigaben siehe **ROADMAP.md → "Sektorierte Freigabe 2026-10-31"**: sie gilt nur
   für diesen Sync-Kandidaten (sequentielle Testfenster + ein Host nach dem anderen),
   nicht generell und nicht automatisch für andere Hosts oder Flag-Aktivierungen.

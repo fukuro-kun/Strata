@@ -143,11 +143,19 @@ werden die entsprechenden Gates wieder aktiv.
 
 ## Push-Gate: upstream-Code wird erst nach Review öffentlich
 
-**CI-Begrenzung:** Alle mit dem Upstream-Stand eingehenden GitHub-Workflows (`.github/workflows/*.yml`) sind upstream-Referenz und tragen je Job den Fork-Guard `if: github.repository == 'Niko1221/Strata'` — auf europa und dem GitHub-Mirror (anderer Repositoryname) skippen sämtliche Jobs. Zusätzlich ist `on:` überall auf **nur `workflow_dispatch`** reduziert (User-Entscheid: keine automatischen Abläufe — kein Push-/PR-/Cron-Trigger, keine PR-Bots); die Dateien bleiben als manuelle Upstream-Referenz erhalten. Jede künftige Workflow-Übernahme muss denselben Endzustand zeigen. Regressionstest: `tools/test_fork_workflows.py`.
+**CI-Begrenzung (Betriebsregel 2026-11-21):** Der Fork entfernt sämtliche `.github/workflows/*.yml|*.yaml` — kein automatischer Build, kein Test, kein Publish, auf keinem Remote (Nutzerwill: nichts wird von einem System ausgeführt; Builds/Tests/Installationen laufen manuell oder durch Agents). Ersetzt die frühere Passiv-Haltung (Repository-Guard + nur `workflow_dispatch`). Sync-Regel: nach jedem upstream-Merge `.github/workflows` erneut löschen (modify/delete-Konflikte → delete). Regressionstest `tools/test_fork_workflows.py` schlägt auf jede gefundene Workflow-Datei fehl.
 
 Der Push-Mirror auf europa spiegelt **jeden** Push sofort nach GitHub —
 ein unreviewter Upstream-Stand wäre damit sofort öffentlich und später
 aus öffentlichen Refs nicht mehr sauber zu tilgen. Deshalb gilt:
+
+> **Stand 2026-11-21:** Der Mirror schlägt seit ~2026-11-20 fehl (PAT ohne
+> `workflow`-Scope; GitHub lehnt Refs ab, die `.github/workflows` anfassen —
+> betraf alle Branches). Push auf `origin` selbst bleibt LAN-only. Nach der
+> Workflow-Entfernung können neue Refs OHNE Workflow-Änderung den Mirror
+> wieder passieren — das Gate bleibt deshalb unverändert in Kraft; die
+> `branch_filter`-Option (nur `main` spiegeln) steht als struktureller
+> Zusatzschutz in der Forgejo-Config zur Entscheidung.
 
 - Code aus `upstream` (Fetch- oder Merge-Stand) wird **niemals auf einen
   `origin`-Branch gepusht, solange er unreviewed ist** — auch nicht „nur
@@ -176,6 +184,24 @@ aus öffentlichen Refs nicht mehr sauber zu tilgen. Deshalb gilt:
   Keine automatischen Resets oder Löschungen. Teilübernahme nur
   als bewusster Cherry-Pick einzelner reviewed Commits — nie als Merge
   des Gesamtstands.
+
+## Betriebsregel 2026-11-21 (Nutzerentscheid): schnellste Version ist produktiv
+
+- **Produktiv laeuft auf allen Hosts jeweils die leistungsfaehigste
+  gemessene Version.** Ein Kandidat, der im A/B langsamer ist, wird nicht
+  ausgerollt — auch wenn er neuere Features oder Korrekturen bringt.
+- **Der `feat/sync-*`-Branch haelt den Fork dauerhaft nahe am upstream-Tip**
+  (mit allen Sicherheitskonzepten: Acquisition-Deny, Offline-Siegel,
+  passive CI). Er ist die laufende Integrationslinie, nicht die
+  Produktionslinie. Er bleibt wie bisher bis zum Clean-Verdict lokal.
+- **Jede neue Integration wird erneut gegen die Produktion gemessen**
+  (`docs/UPSTREAM_BENCHMARKS.md`). Ein Wechsel trotz relevanter Regression
+  erfordert ausdruecklich substanzielle Gegenwerte (Sicherheit oder
+  kritische Korrektheit) — mit strengem Massstab. Unwesentliche Features
+  aendern das Urteil nicht; Performance ist das primaere Kriterium.
+- Referenzfall: v0.2.17 (`a3de90d5c` auf `feat/sync-2026-11-21-v0217`) —
+  Sync-Stand committed, A/B-Regression auf langen Prompts, daher **nicht**
+  produktiv; Produktion bleibt die schnellere v0.2.15-Linie.
 
 ## Was niemals passiert
 
