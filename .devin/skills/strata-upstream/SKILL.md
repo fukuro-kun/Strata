@@ -203,6 +203,10 @@ dieser Grenze erfüllen.
    Git-Hooks für diese Operationen deaktivieren. Dies ist noch keine
    Übernahme in die freigegebene Fork-Linie. Nur geprüfte Patches
    übernehmen, Konflikte nie automatisch zugunsten Upstream auflösen.
+   **Nach jedem Merge `.github/workflows` erneut loeschen** (`git rm`;
+   modify/delete-Konflikt -> delete) und `tools/test_fork_workflows.py`
+   laufen lassen — Betriebsregel 2026-11-21: keine automatischen
+   Ablaeufe; upstream bringt die Dateien bei jedem Merge erneut mit.
 5. Endgueltigen Zieldiff, Fork-Anpassungen und Build-/Betriebsabhaengigkeiten
    gemaess dokumentiertem Pruefumfang pruefen. Historische Zwischenstaende
    nur bei konkretem Verdacht oder zur Fehler-/Herkunftsklaerung verfolgen;

@@ -30,7 +30,7 @@ keine Freigabe fuer diesen Merge.
 | Umfang | Voller Git-Merge samt Historie | Ausdruecklicher Nutzerwunsch, wenig Upstream-Drift |
 | Basis | Dokumentierter neuerer Recovery-Fork-Stand | Recovery-Schutz nicht durch veraltetes main verlieren |
 | Bezugsweg | Eigener Fork, lokale Source-Builds | Kontrollierte Versorgungskette |
-| Workflows | Nur workflow_dispatch; alle Jobs auf Niko1221/Strata begrenzt | Keine fremden automatischen Ablaeufe auf Fork/Mirror |
+| Workflows | `.github/workflows` seit 2026-11-21 komplett entfernt (zuvor: nur workflow_dispatch + Repository-Guards) | Keine fremden automatischen Ablaeufe auf Fork/Mirror |
 | Tests/Rollout | Sequentielle Testfenster, danach nur bei erfuellten Gates ein Host nach dem anderen | Anderen Endpunkt verfuegbar und Rollback bereit halten |
 | Benchmark-Profil | Je Host tatsaechliches eingefrorenes aktives Profil | Kein Vergleich mit veralteter Dual-GPU-Dokumentation |
 | Unklare Befunde | Aufrufkette belegen; Hypothesen nicht zu Tatsachen machen | Keine falschen Freigaben oder unnoetigen Eingriffe |

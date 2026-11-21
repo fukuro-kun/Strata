@@ -318,9 +318,9 @@ auf Aktivierung von Recovery-Flags auf anderen Hosts ausgeweitet.
   Validierung bleibt offen (Gate, nicht "gruen"). Das eingefrorene `ec02`-Binary
   bleibt nur Referenz, kein Kandidaten-Artefakt mehr.
 - **User-Entscheide**: voller Git-Merge (kein Source-Snapshot);
-  keine automatische CI im Fork — `.github/workflows` bleiben als manuelle
-  Upstream-Referenz (`on:` nur `workflow_dispatch`, Jobs zusätzlich
-  repository-guarded).
+  keine automatische CI im Fork — seit 2026-11-21 wird `.github/workflows`
+  vollstaendig entfernt (Betriebsregel: nichts laeuft automatisch; nach
+  jedem Merge erneut loeschen, `test_fork_workflows.py` = Absenz-Pruefung).
 - **P2-Befund (Updater-Test-Start)**: `default_test_start` entfernte
   `STRATA_API_KEY` innerhalb von `_patched_environ`, ohne ihn in der
   Env-Map zu erfassen — der Eltern-Key ging nach dem Kontext verloren

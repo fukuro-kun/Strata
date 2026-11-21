@@ -483,3 +483,39 @@ proc-Pin (P2), 98 Acquisition-Testluecken per Flag-Konvention geschlossen
 
 **Offener Upstream-Rueckstand: keiner** — der Fork steht auf dem
 upstream-Tip `c77572806`. Naechster Schritt: taeglicher Radar.
+
+## Stand 2026-11-21: Integration `3142b66b9` (v0.2.17 / engine 0.1.63) — ABGELEHNT
+
+Upstream v0.2.16 (Layout-Umbau `src/`→`engine/`, `serve/`→`terminal/`,
+`update.sh`/`setup.py` geloescht) + v0.2.17 als Paket integriert: Fork-Delta
+auf das neue Layout portiert (Acquisition-Deny, `tools/offline/`,
+P3-Siegel mit Modell-/Config-Bindung, LAN-Key-Zwang, passive CI,
+Vision-RLock-Fix, Drafting-/Manifest-Haertung). Lokaler Test-Snapshot
+`e26fbeb5fe6c` (`feat/v0217-eris-ab-snapshot`, unveroeffentlicht).
+Isolierte Suites gruen (84 Manifest/Deploy/Rollback, 5 API-Key, 79 serve,
+73+30 Fork-Gates); zwei unabhaengige Review-Runden (kein P0 im
+Launcher-Pfad). Rueckkehr-Snapshots + Pointer-Drills auf eris/uranus
+verifiziert.
+
+**A/B auf eris (sm_86, beide Arme dort offline gebaut, CUDA 12.4/gcc-13,
+ggml-Pin identisch, produktive Config, Loopback, frische Prozesse,
+5 gepaarte Runden + Probes, 0 funktionale Fehler):** T1-5K prompt +84.3 %
+(Signal, real ~2× schneller), **T1-20K prompt −27.1 %, 5/5 Paare B≤A
+(B-Max 275.8 ≈ A-Median 274.5 — systematisch)**, T2 decode −11.2 % im
+Rauschen, T3 50/50 ok. Hypothese: neuer eigener Prefill-Pfad (llama.cpp-
+MMQ-Ersatz) schneller kurz, langsamer unter File-Tier-Streaming — fuer
+unser agentisches Langkontext-Regime ist das die dominante Last →
+**Ablehnung gemaess Nutzerregel + UPSTREAM_BENCHMARKS**, kein Rollout auf
+eris oder uranus. Produktion nach dem Fenster wiederhergestellt
+(svc+timer aktiv, Auth-Antwort 401). Rohdaten auf eris
+(`strata-ab-v0217.eBSMaaLw/results/`). Report:
+`Strata-cand-v0217/docs/upstream-reviews/REVIEW_2026-11-21_3142b66b96e9.md`.
+
+**Offener Upstream-Rueckstand:** v0.2.16+v0.2.17 geprueft, abgelehnt
+(Regression); Fork bleibt auf `325d5bfae` (v0.2.15-Basis + Fork-Fixes)
+bzw. `b47205cb5` (Workflow-Entfernung, kein Runtime-Delta). Der Sync-
+Stand `758b7dbe0` auf `feat/sync-2026-11-21-v0217` ist committed und auf
+Forgejo (LAN); Mirror nach GitHub schlaegt weiter fehl (siehe
+UPSTREAM_SYNC.md §Push-Gate, Stand 2026-11-21). Naechster Schritt:
+taeglicher Radar; erneute Bewertung erst bei geaenderter
+Prefill-Performance oder mehr Host-RAM.
