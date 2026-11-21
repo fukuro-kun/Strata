@@ -16,7 +16,7 @@ from types import ModuleType, SimpleNamespace
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "strata_control" / "updater.py"
+SRC = ROOT / "terminal" / "strata_control" / "updater.py"
 QUELLE = SRC.read_text(encoding="utf-8")
 
 
@@ -49,6 +49,8 @@ def _lade_funktionen():
         "_log_tail": lambda *a: "",
         "binary_smoke": lambda c: {"mode": "smoke"},
         "discover_run_config": lambda environ=None: None,
+        "TEST_ENV": {"STRATA_PLE_AUTO_RAM": "0"},
+        "low_memory": lambda cfg: None,
     }
     exec(compile(ast.Module(body=fns, type_ignores=[]), str(SRC), "exec"), ns)
     return ns, TestStartFailed
@@ -68,7 +70,7 @@ class TestUpdaterEnv(unittest.TestCase):
         cfg = root / "run.json"
         cfg.write_text(json.dumps({"model_name": "dummy", "args": []}), encoding="utf-8")
         ctx = SimpleNamespace(run_config=str(cfg), test_timeout=1,
-                              allow_no_model_smoke=True, environ={})
+                              allow_no_model_smoke=True, environ={}, memory_check=None)
         component = SimpleNamespace(backend="cuda", version="0.0.0-test")
         return root, stage, component, ctx
 
@@ -98,6 +100,8 @@ class TestUpdaterEnv(unittest.TestCase):
         paket = ModuleType("strata_control")
         paket.profiles = SimpleNamespace(create=create)
         paket.runtime = SimpleNamespace(start=start, stop=stop, verify=verify)
+        paket.control_paths = SimpleNamespace(repoint=lambda cfg: cfg)
+        paket.cfg_paths = SimpleNamespace(resolve_config=lambda cfg: (cfg, [], []))
         root, stage, component, ctx = self._fixture()
         result, geworfen = None, None
         try:

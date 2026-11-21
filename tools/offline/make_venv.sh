@@ -74,7 +74,7 @@ VPY="$VENV/bin/python"
 
 info "installing requirements.txt + requirements-build.txt (--no-index, wheelhouse only)"
 clean_python "$PY" -I "$LOCK_PY" --manifest "$LOCK_MANIFEST" \
-  "$REPO_ROOT/requirements.txt" "$REPO_ROOT/requirements-build.txt" > "$LOCK_DIR/requirements-offline.lock" \
+  "$REPO_ROOT/terminal/requirements.txt" "$REPO_ROOT/terminal/requirements-build.txt" > "$LOCK_DIR/requirements-offline.lock" \
   || die "requirements contain unsupported pins or options"
 clean_python "$VPY" -I -m pip --isolated install --no-index --no-deps --no-cache-dir --only-binary=:all: \
   --require-hashes --find-links "$WH" --disable-pip-version-check -r "$LOCK_DIR/requirements-offline.lock"
@@ -82,8 +82,8 @@ clean_python "$VPY" -I -m pip --isolated install --no-index --no-deps --no-cache
 # CUDA runtime wheels (parsed from setup.py — same pins setup installs). An
 # empty parse must fail closed: silently skipping means a venv WITHOUT the
 # CUDA libs that later dies at runtime on libcublas.
-mapfile -t CUDA_WHEELS < <(grep -oP 'CUDA_WHEELS = \[\K[^\]]+' "$REPO_ROOT/setup.py" | grep -oP '"[^"]+"' | tr -d '"')
-mapfile -t CUDA12_WHEELS < <(grep -oP 'CUDA12_WHEELS = \[\K[^\]]+' "$REPO_ROOT/setup.py" | grep -oP '"[^"]+"' | tr -d '"')
+mapfile -t CUDA_WHEELS < <(grep -oP 'CUDA_WHEELS = \[\K[^\]]+' "$REPO_ROOT/terminal/setup.py" | grep -oP '"[^"]+"' | tr -d '"')
+mapfile -t CUDA12_WHEELS < <(grep -oP 'CUDA12_WHEELS = \[\K[^\]]+' "$REPO_ROOT/terminal/setup.py" | grep -oP '"[^"]+"' | tr -d '"')
 if [ "$CUDA" = auto ]; then
   if command -v nvcc >/dev/null; then
     MAJ="$(nvcc --version | grep -oP 'release \K[0-9]+' || true)"

@@ -1,17 +1,17 @@
 # Set up Strata for a user
 
-> **FORK-NOTE:** This repository is a controlled fork. Do **not** run `setup.py`, `setup.sh`,
+> **FORK-NOTE:** This repository is a controlled fork. Do **not** run `terminal/setup.py`, `setup.sh`,
 > `START-HERE.bat` or any step below that downloads installers or prebuilt engine binaries.
 > The fork builds from pinned sources only — see [OFFLINE_BUILD.md](OFFLINE_BUILD.md),
 > [DEPLOYMENT.md](DEPLOYMENT.md) and the repository `AGENTS.md`. The rest of this page is
 > upstream reference material.
 
-Use this guide when a user asks an AI agent to install Strata (version 0.2.15). There are two release routes. Pick
+Use this guide when a user asks an AI agent to install Strata (version 0.2.17). There are two release routes. Pick
 one; do not start from a source checkout.
 
 - **The Terminal and `strata launch`** (below). This is the route for an agent that has a shell.
-- **The desktop app.** One installer per system: `Strata-0.2.15-windows-x64-setup.exe`,
-  `Strata-0.2.15-linux-x86_64.AppImage`, `Strata-0.2.15-macos-arm64.dmg`, from the
+- **The desktop app.** One installer per system: `Strata-0.2.17-windows-x64-setup.exe`,
+  `Strata-0.2.17-linux-x86_64.AppImage`, `Strata-0.2.17-macos-arm64.dmg`, from the
   [latest release](https://github.com/Niko1221/Strata/releases/latest). The Windows and Linux installers carry no
   engine: on first start the app shows the engine for the user's graphics card and downloads it, or installs a file the
   user already has ("I already have the file"). Details: [INSTALL.md](INSTALL.md).

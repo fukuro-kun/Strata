@@ -39,8 +39,8 @@ PIP=(python3 -m pip)
 "${PIP[@]}" --version >/dev/null 2>&1 || die "no pip for python3 — install python3-pip (deliberate one-time install)"
 
 # CUDA library wheels are pinned in setup.py (single source of truth).
-mapfile -t CUDA_WHEELS < <(grep -oP 'CUDA_WHEELS = \[\K[^\]]+' "$REPO_ROOT/setup.py" | grep -oP '"[^"]+"' | tr -d '"')
-mapfile -t CUDA12_WHEELS < <(grep -oP 'CUDA12_WHEELS = \[\K[^\]]+' "$REPO_ROOT/setup.py" | grep -oP '"[^"]+"' | tr -d '"')
+mapfile -t CUDA_WHEELS < <(grep -oP 'CUDA_WHEELS = \[\K[^\]]+' "$REPO_ROOT/terminal/setup.py" | grep -oP '"[^"]+"' | tr -d '"')
+mapfile -t CUDA12_WHEELS < <(grep -oP 'CUDA12_WHEELS = \[\K[^\]]+' "$REPO_ROOT/terminal/setup.py" | grep -oP '"[^"]+"' | tr -d '"')
 [ "${#CUDA_WHEELS[@]}" -gt 0 ]   || die "could not parse CUDA_WHEELS from setup.py"
 [ "${#CUDA12_WHEELS[@]}" -gt 0 ] || die "could not parse CUDA12_WHEELS from setup.py"
 info "CUDA wheels (setup.py): ${CUDA_WHEELS[*]} | ${CUDA12_WHEELS[*]}"
@@ -56,7 +56,7 @@ else
 fi
 
 info "downloading requirements.txt + requirements-build.txt wheels -> $WH"
-"${PIP[@]}" "${DL[@]}" -r "$REPO_ROOT/requirements.txt" -r "$REPO_ROOT/requirements-build.txt"
+"${PIP[@]}" "${DL[@]}" -r "$REPO_ROOT/terminal/requirements.txt" -r "$REPO_ROOT/terminal/requirements-build.txt"
 
 info "downloading CUDA library wheels (13.x + 12.x sets)"
 "${PIP[@]}" "${DL[@]}" "${CUDA_WHEELS[@]}" "${CUDA12_WHEELS[@]}"

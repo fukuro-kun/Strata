@@ -1,11 +1,11 @@
 # Install Strata
 
-> **FORK-NOTE:** This repository is a controlled fork — do **not** run `setup.py`, `setup.sh`,
+> **FORK-NOTE:** This repository is a controlled fork — do **not** run `terminal/setup.py`, `setup.sh`,
 > `START-HERE.bat` or any installer step described below. Builds and deployments use the
 > pinned, offline toolchain instead: [OFFLINE_BUILD.md](OFFLINE_BUILD.md) and
 > [DEPLOYMENT.md](DEPLOYMENT.md). The rest of this page is upstream reference material.
 
-This page is for anyone installing or updating Strata (version 0.2.15). Use the **desktop app** for a graphical
+This page is for anyone installing or updating Strata (version 0.2.17). Use the **desktop app** for a graphical
 interface, or the **Terminal** for `strata launch` and coding tools. Both use released engine packages. A normal
 install does not need a source checkout or a startup `.bat` file.
 
@@ -42,10 +42,10 @@ hardware drivers. Models and updates need an internet connection to download.
 
 1. Open the [latest release](https://github.com/Niko1221/Strata/releases/latest).
 2. Download the one installer for your system. There is one per system, not one per graphics card:
-   - **Windows:** run `Strata-0.2.15-windows-x64-setup.exe`. It installs for your user and needs no administrator rights.
-   - **Linux:** make `Strata-0.2.15-linux-x86_64.AppImage` executable, then open it. If FUSE is unavailable, run the
+   - **Windows:** run `Strata-0.2.17-windows-x64-setup.exe`. It installs for your user and needs no administrator rights.
+   - **Linux:** make `Strata-0.2.17-linux-x86_64.AppImage` executable, then open it. If FUSE is unavailable, run the
      downloaded file with `--appimage-extract-and-run`. [Linux help](TROUBLESHOOTING.md).
-   - **Mac:** open `Strata-0.2.15-macos-arm64.dmg`, drag Strata into Applications, then open it. [Mac help](MAC.md).
+   - **Mac:** open `Strata-0.2.17-macos-arm64.dmg`, drag Strata into Applications, then open it. [Mac help](MAC.md).
 3. On Windows and Linux the installer has no engine inside. On first start the app shows the engine for your
    graphics card with its size and one **Download** button, with progress and resume. If you already downloaded the
    engine file, choose **I already have the file** and it installs without internet. The Mac file keeps its small
@@ -129,7 +129,7 @@ In a script nothing is asked: `--yes` alone never stops a model (exit 7, nothing
 and `--start-again` starts it again afterwards (exit 8 if it did not start again). The next Terminal command uses the updated
 Control component. The app, Control and engine have separate version numbers, so they can differ.
 
-Use `strata components rollback` to return to the previous engine. See [update details](../packaging/UPDATES.md).
+Use `strata components rollback` to return to the previous engine. See [update details](../tools/packaging/UPDATES.md).
 Source checkouts have a [separate update workflow](SOURCE_INSTALL.md#updating).
 
 ## Where things are stored

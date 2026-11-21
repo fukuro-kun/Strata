@@ -4,10 +4,10 @@
 # FORK POLICY (fukuro-kun/Strata): this is the ONLY sanctioned way to obtain
 # the llama.cpp source. It is a deliberate, documented, one-time procurement
 # step — never invoked automatically by build/start/calibration paths.
-# The result lands at third_party/llama.cpp (gitignored, reserved path) with a
-# .strata-pin marker. Only needed for -DSTRATA_GGML_DIR=<tree> override builds
-# (review/comparison) — the standard build uses the vendored third_party/strata-*
-# trees and needs no fetched tree at all.
+# The result lands at engine/third_party/llama.cpp (gitignored, reserved path)
+# with a .strata-pin marker. Only needed for -DSTRATA_GGML_DIR=<tree> override
+# builds (review/comparison) — the standard build uses the vendored
+# engine/third_party/strata-* trees and needs no fetched tree at all.
 #
 # Sources (in order of preference):
 #   --from-dir <path>   copy an existing verified tree (e.g. rsync'd from a LAN
@@ -26,14 +26,14 @@
 #     integrity was proven another way — record the hashes you used).
 #
 # Verification afterwards (all modes): tree must contain ggml/CMakeLists.txt,
-# gguf-py/, ggml/src/; the pin in third_party/ggml/VERSION.txt must equal
-# LLAMA_CPP_COMMIT in setup.py. .strata-pin is then written into the tree.
+# gguf-py/, ggml/src/; the pin in engine/third_party/ggml/VERSION.txt must equal
+# LLAMA_CPP_COMMIT in terminal/setup.py. .strata-pin is then written into the tree.
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-DEST="$REPO_ROOT/third_party/llama.cpp"
-PIN_FILE="$REPO_ROOT/third_party/ggml/VERSION.txt"
+DEST="$REPO_ROOT/engine/third_party/llama.cpp"
+PIN_FILE="$REPO_ROOT/engine/third_party/ggml/VERSION.txt"
 
 die() { echo "fetch_llamacpp: ERROR: $*" >&2; exit 1; }
 info() { echo "fetch_llamacpp: $*"; }
@@ -41,9 +41,9 @@ info() { echo "fetch_llamacpp: $*"; }
 # Never let a partial clone turn git commands into silent network fetches.
 export GIT_NO_LAZY_FETCH=1
 
-# The pin is read from setup.py (single source of truth).
-LLAMA_CPP_COMMIT="$(grep -oP 'LLAMA_CPP_COMMIT\s*=\s*"\K[0-9a-f]{40}' "$REPO_ROOT/setup.py")" \
-  || die "could not read LLAMA_CPP_COMMIT from setup.py"
+# The pin is read from terminal/setup.py (single source of truth).
+LLAMA_CPP_COMMIT="$(grep -oP 'LLAMA_CPP_COMMIT\s*=\s*"\K[0-9a-f]{40}' "$REPO_ROOT/terminal/setup.py")" \
+  || die "could not read LLAMA_CPP_COMMIT from terminal/setup.py"
 [ -n "$LLAMA_CPP_COMMIT" ] || die "LLAMA_CPP_COMMIT empty in setup.py"
 
 # Cross-check against the vendored VERSION.txt (written when ggml was vendored).

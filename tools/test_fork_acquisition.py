@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "terminal"))
 from strata_control import acquisition          # noqa: E402
 from strata_control import components            # noqa: E402
 
@@ -82,7 +82,7 @@ class Gate(unittest.TestCase):
             from serve.frontend import ChatTemplate
             from serve.server import ByteTokenizer, MockEngine, Service, serve
             svc = Service(MockEngine(ByteTokenizer(), "Hi.", max_context=1024), ByteTokenizer(),
-                          ChatTemplate(Path(__file__).resolve().parent.parent / "serve/chat_template.jinja"))
+                          ChatTemplate(Path(__file__).resolve().parent.parent / "terminal/serve/chat_template.jinja"))
             httpd = serve(svc, port=0)
             httpd.shutdown(); httpd.server_close()
         self.assertEqual(urlopen.call_count, 0)
@@ -98,17 +98,18 @@ class RunServerWrapper(unittest.TestCase):
         root = Path(td) / "repo"
         (root / "tools/offline").mkdir(parents=True)
         (root / ".venv-offline/bin").mkdir(parents=True)
-        (root / "serve").mkdir(parents=True)
+        (root / "terminal/serve").mkdir(parents=True)
         shutil.copy(REPO / "tools/offline/run_server.sh", root / "tools/offline/run_server.sh")
         py = root / ".venv-offline/bin/python"
         py.write_text(
             "#!/usr/bin/env python3\n"
             "import json, os, sys\n"
-            "json.dump({k: os.environ.get(k) for k in "
-            "('STRATA_NO_ACQUIRE','STRATA_FORK_ALLOW_ACQUIRE','STRATA_NO_HANDOVER')},"
+            "json.dump({**{k: os.environ.get(k) for k in "
+            "('STRATA_NO_ACQUIRE','STRATA_FORK_ALLOW_ACQUIRE','STRATA_NO_HANDOVER','STRATA_NATIVE_HELPERS','STRATA_NATIVE_HELPER_DIR')},"
+            " 'args': sys.argv[2:]},"
             " open(sys.argv[1] + '.env.json', 'w'))\n")
         py.chmod(0o755)
-        server = root / "serve/server.py"
+        server = root / "terminal/serve/server.py"
         server.write_text("import sys\nopen(sys.argv[1] + '.ran','w').write('x')\n")
         return root
 
@@ -116,7 +117,8 @@ class RunServerWrapper(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             root = self._fixture(td)
             env = {**os.environ, "STRATA_FORK_ALLOW_ACQUIRE": "1",
-                   "STRATA_NO_ACQUIRE": "0", "STRATA_NO_HANDOVER": "0"}
+                   "STRATA_NO_ACQUIRE": "0", "STRATA_NO_HANDOVER": "0",
+                   "STRATA_NATIVE_HELPERS": "all", "STRATA_NATIVE_HELPER_DIR": "/unapproved"}
             r = subprocess.run(
                 ["bash", "tools/offline/run_server.sh", "--mock"],
                 cwd=root, env=env, capture_output=True, text=True, timeout=30)
@@ -126,6 +128,9 @@ class RunServerWrapper(unittest.TestCase):
             self.assertEqual(recorded.get("STRATA_NO_ACQUIRE"), "1")
             self.assertEqual(recorded.get("STRATA_NO_HANDOVER"), "1")
             self.assertEqual(recorded.get("STRATA_FORK_ALLOW_ACQUIRE"), "1")
+            self.assertEqual(recorded.get("STRATA_NATIVE_HELPERS"), "0")
+            self.assertIsNone(recorded.get("STRATA_NATIVE_HELPER_DIR"))
+            self.assertIn("--offline", recorded["args"])
 
     def test_missing_config_fails_before_spawn(self):
         with tempfile.TemporaryDirectory() as td:

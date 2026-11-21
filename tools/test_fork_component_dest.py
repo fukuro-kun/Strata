@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "terminal"))
 from strata_control.components import Artifact, Component, ComponentStore, UnsafeArchive  # noqa: E402
 from strata_control.targets import ComponentError                                        # noqa: E402
 

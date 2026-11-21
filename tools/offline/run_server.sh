@@ -3,7 +3,7 @@
 # venv only.
 #
 # FORK POLICY: replaces upstream's generated run-<model>.sh. Same call shape
-# (.venv python -> serve/server.py --engine strata --config X --port Y) but
+# (.venv python -> terminal/serve/server.py --engine strata --config X --port Y) but
 # every input is validated first and missing input is a hard error — never a
 # download, never a fallback to setup.py.
 #
@@ -23,8 +23,11 @@ set -euo pipefail
 # STRATA_NO_HANDOVER keeps the corrected env name (strata_cli/handover.py ENV_OFF).
 export STRATA_NO_ACQUIRE=1
 export STRATA_NO_HANDOVER=1
+export PYTHONDONTWRITEBYTECODE=1
+export STRATA_NATIVE_HELPERS=0
+unset STRATA_NATIVE_HELPER_DIR
 
-REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+REPO_ROOT="$(cd "$(/usr/bin/dirname "$0")/../.." && pwd)"
 VPY="$REPO_ROOT/.venv-offline/bin/python"
 
 die()  { echo "run_server: ERROR: $*" >&2; exit 1; }
@@ -46,19 +49,19 @@ while [ $# -gt 0 ]; do
 done
 
 [ -x "$VPY" ] || die "offline venv missing ($VPY) — run tools/offline/make_venv.sh first"
-[ -f "$REPO_ROOT/serve/server.py" ] || die "serve/server.py not found — wrong checkout?"
+[ -f "$REPO_ROOT/terminal/serve/server.py" ] || die "terminal/serve/server.py not found — wrong checkout?"
 
-ARGS=(--engine)
+ARGS=(--offline --engine)
 if [ "$MOCK" = 1 ]; then
   ARGS+=(mock)
 else
   [ -n "$CONFIG" ] || die "no config given — usage: run_server.sh strata-<model>.json [--port N]"
-  CFG_ABS="$(cd "$(dirname "$CONFIG")" 2>/dev/null && pwd)/$(basename "$CONFIG")"
+  CFG_ABS="$(cd "$(/usr/bin/dirname "$CONFIG")" 2>/dev/null && pwd)/$(/usr/bin/basename "$CONFIG")"
   [ -f "$CFG_ABS" ] || die "config not found: $CONFIG"
   # Validate the config and its referenced files before any startup work.
   # exe/args paths resolve against cfg["cwd"] (the engine's working dir),
   # tokenizer against the server's cwd (this repo).
-  CFG_CHECK="$("$VPY" - "$CFG_ABS" "$REPO_ROOT" <<'PY'
+  CFG_CHECK="$(/usr/bin/python3 -I -S - "$CFG_ABS" "$REPO_ROOT" <<'PY'
 import json, sys
 from pathlib import Path
 p, root = Path(sys.argv[1]), Path(sys.argv[2])
@@ -80,19 +83,29 @@ args = cfg.get("args")
 if not isinstance(args, list):
     missing.append('"args": not a list')
 else:
-    # flags whose VALUE is a path (or file:scale). --mtp is a path for file
+    # flags whose VALUE is a path (or FILE:SCALE list). --mtp is a path for file
     # models but a count for own-path (qwen36) configs — skip numerics.
-    FILE_FLAGS = {"--pack", "--native", "--ple-gguf", "--native-dense-gguf",
-                  "--embd-gguf", "--expert-profile", "--draft"}
-    for i, a in enumerate(args[:-1]):
-        v = str(args[i + 1])
-        if a in FILE_FLAGS:
-            if not find(v).exists():
-                missing.append(f"args {a} -> {v!r}")
-        elif a == "--mtp" and not v.lstrip("-").isdigit() and not find(v).exists():
-            missing.append(f"args --mtp -> {v!r}")
-        elif a == "--control-vector-scaled" and not find(v.rsplit(":", 1)[0]).exists():
-            missing.append(f"args --control-vector-scaled -> {v!r}")
+    # --draft is a mode, --draft-costs is mutable state: neither binds a file.
+    FILE_FLAGS = {"--pack", "--native", "--model", "--ple-gguf", "--native-dense-gguf",
+                  "--native-head-gguf", "--embd-gguf", "--expert-profile", "--draft-model",
+                  "--mtp-draft-vocab", "--control-vector", "--tokens-file",
+                  "--spec-oracle", "--spec-follow"}
+    for key, seq in (("args", args), ("user_args", cfg.get("user_args", []))):
+        if not isinstance(seq, list):
+            missing.append(f'"{key}": not a list')
+            continue
+        for i, a in enumerate(seq[:-1]):
+            v = str(seq[i + 1])
+            if a in FILE_FLAGS:
+                if not find(v).exists():
+                    missing.append(f"{key} {a} -> {v!r}")
+            elif a == "--mtp" and not v.lstrip("-").isdigit() and not find(v).exists():
+                missing.append(f"{key} --mtp -> {v!r}")
+            elif a == "--control-vector-scaled":
+                for item in v.split(','):
+                    file, sep, scale = item.rpartition(':')
+                    if not sep or not file or not scale or not find(file).is_file():
+                        missing.append(f"{key} {a} -> {item!r}")
 tok = cfg.get("tokenizer")
 if tok:
     tdir = Path(str(tok)) if Path(str(tok)).is_absolute() else root / str(tok)
@@ -114,6 +127,6 @@ fi
 [ -n "$PORT" ] && ARGS+=(--port "$PORT")
 [ -n "$HOST" ] && ARGS+=(--host "$HOST")
 
-info "starting: $VPY serve/server.py ${ARGS[*]}"
+info "starting: $VPY terminal/serve/server.py ${ARGS[*]}"
 cd "$REPO_ROOT"
-exec "$VPY" "$REPO_ROOT/serve/server.py" "${ARGS[@]}"
+exec "$VPY" "$REPO_ROOT/terminal/serve/server.py" "${ARGS[@]}"

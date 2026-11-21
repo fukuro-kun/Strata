@@ -26,15 +26,15 @@ from types import SimpleNamespace
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
-QUELLE = (ROOT / "tools" / "mtp_fetch.py").read_text(encoding="utf-8")
+QUELLE = (ROOT / "terminal" / "tools" / "mtp_fetch.py").read_text(encoding="utf-8")
 
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "terminal"))
 from strata_control import acquisition  # noqa: E402
 
 PAYLOAD = b"tensor01"
 WANT = hashlib.sha256(PAYLOAD).hexdigest()
 FNS = ["_final", "get", "check_range", "ranged", "sha256_of", "pinned",
-       "resolve_repo", "inventory", "fetch", "verify", "main"]
+       "resolve_repo", "inventory", "fetch", "verify", "main", "_say_waiting"]
 
 
 class PrepSentinel(AssertionError):
@@ -65,6 +65,9 @@ def _lade():
         "hashlib": hashlib, "json": json, "os": os, "struct": struct, "sys": sys,
         "threading": threading, "time": time,
         "urllib": SimpleNamespace(request=urllib.request, error=urllib.error),
+        "netpolicy": SimpleNamespace(open_url=lambda opener, request, **kwargs: opener(request), urlopen=lambda request: urllib.request.urlopen(request),
+                                     NetFailure=type("NetFailure", (OSError,), {})),
+        "_ANY_BYTES": [False], "NO_ANSWER": 4, "OFFLINE": 5,
         "REPO": "https://fixture.invalid/resolve/rev/", "PINNED": "https://fixture.invalid/resolve/rev/",
         "REVISION": "rev", "BAD": 3, "SHA256": {"fixture.mtp.w": WANT},
         "CDN_TTL": 600, "_cdn": {}, "_cdn_lock": threading.Lock(),

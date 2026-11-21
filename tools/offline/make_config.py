@@ -2,7 +2,7 @@
 """make_config.py — write a strata-<model>.json run config without setup.py.
 
 FORK (fukuro-kun/Strata): minimal writer producing exactly the JSON shape
-serve/server.py reads (keys exe/args/cwd/tokenizer/model_name/log/lib_dirs/
+terminal/serve/server.py reads (keys exe/args/cwd/tokenizer/model_name/log/lib_dirs/
 port/gpu). It does NOT reproduce setup's model-choice logic — the engine
 "args" stay the caller's responsibility (copy a known-good config's args or
 take them from a P3 manifest). Written atomically like setup's write_config.
@@ -35,7 +35,7 @@ ROOT = Path(__file__).resolve().parents[2]
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("name", help="model short name -> strata-<name>.json, model_name qwen3.8-flash-next-<name>")
-    p.add_argument("--exe", default=str(ROOT / "engine" / "strata"), help="engine binary (default: repo engine/strata)")
+    p.add_argument("--exe", default=str(ROOT / "terminal" / "engine" / "strata"), help="engine binary (default: repo terminal/engine/strata)")
     p.add_argument("--pack", help="engine --pack directory")
     p.add_argument("--native", help="engine --native GGUF file")
     p.add_argument("--tokenizer", help="tokenizer dir containing vocab.json (default: <pack>/tokenizer)")

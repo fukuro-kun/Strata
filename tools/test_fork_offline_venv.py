@@ -88,9 +88,11 @@ class OfflineVenv(unittest.TestCase):
         dummy.write_bytes(b"kein verwendetes Wheel")
         digest = hashlib.sha256(dummy.read_bytes()).hexdigest()
         (wheelhouse / "MANIFEST.sha256").write_text(f"{digest}  {dummy.name}\n", encoding="ascii")
-        (self.repo / "requirements.txt").write_text("strata-test-untracked==1.0\n", encoding="ascii")
-        (self.repo / "requirements-build.txt").write_text("", encoding="ascii")
-        (self.repo / "setup.py").write_text("CUDA_WHEELS = []\nCUDA12_WHEELS = []\n", encoding="ascii")
+        terminal = self.repo / "terminal"
+        terminal.mkdir(exist_ok=True)
+        (terminal / "requirements.txt").write_text("strata-test-untracked==1.0\n", encoding="ascii")
+        (terminal / "requirements-build.txt").write_text("", encoding="ascii")
+        (terminal / "setup.py").write_text("CUDA_WHEELS = []\nCUDA12_WHEELS = []\n", encoding="ascii")
         return external
 
     def assert_untracked_wheel_not_installed(self):
@@ -120,7 +122,7 @@ class OfflineVenv(unittest.TestCase):
     def test_requirements_koennen_keinen_direkten_dateilink_einschleusen(self):
         external = self.prepare_untracked_wheel()
         wheel = external / "strata_test_untracked-1.0-py3-none-any.whl"
-        (self.repo / "requirements.txt").write_text(
+        (self.repo / "terminal" / "requirements.txt").write_text(
             f"strata-test-untracked @ {wheel.as_uri()}\n", encoding="ascii",
         )
         result = self.assert_untracked_wheel_not_installed()

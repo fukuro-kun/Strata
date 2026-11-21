@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # calibrate.sh — offline calibration wrapper (P2).
 #
-# Runs upstream's tools/calibrate.py under the fork's offline venv against an
+# Runs upstream's terminal/tools/calibrate.py under the fork's offline venv against an
 # existing run config — measures --pcie-frac / --spec-min-p / --pool-workers /
 # adaptive-tier values on this machine. setup.py --calibrate additionally
 # SAVES the result into the config; this script only measures and prints —
@@ -26,4 +26,4 @@ CFG_ABS="$(cd "$(dirname "$CFG")" 2>/dev/null && pwd)/$(basename "$CFG")"
 [ -x "$VPY" ] || die "offline venv missing — run tools/offline/make_venv.sh first"
 
 cd "$REPO_ROOT"
-exec "$VPY" tools/calibrate.py "$CFG_ABS"
+exec "$VPY" terminal/tools/calibrate.py "$CFG_ABS"

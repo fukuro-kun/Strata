@@ -20,10 +20,10 @@ from types import SimpleNamespace
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "terminal"))
 from strata_control import acquisition  # noqa: E402
 
-SRC = (ROOT / "tools" / "strata_mcp.py").read_text(encoding="utf-8")
+SRC = (ROOT / "terminal" / "tools" / "strata_mcp.py").read_text(encoding="utf-8")
 
 
 class ReachedPath(Exception):

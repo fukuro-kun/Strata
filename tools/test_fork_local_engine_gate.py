@@ -13,10 +13,10 @@ from pathlib import Path
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "terminal"))
 from strata_control import acquisition  # noqa: E402  (geprueftes Modul, echte Gate-Logik)
 
-SRC = (ROOT / "strata_control" / "updater.py").read_text(encoding="utf-8")
+SRC = (ROOT / "terminal" / "strata_control" / "updater.py").read_text(encoding="utf-8")
 
 
 class ReachedPathException(Exception):

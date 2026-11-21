@@ -5,10 +5,11 @@
 # exist locally and pinned; a missing input is a hard error with a clear
 # message (fail closed), never a fallback to network procurement.
 #
-# It follows the upstream local-build path (setup.py -> cmake_build) and writes
-# an engine/BUILD.json stamp in upstream format plus fork fields. It does NOT
-# cover the experimental sm_<75 build (STRATA_EXPERIMENTAL_SM60) or the
-# STRATA_ISA_FLOOR path — pass extra flags via --cmake-def if ever needed.
+# It follows the upstream local-build path (terminal/setup.py -> cmake_build)
+# and writes a terminal/engine/BUILD.json stamp in upstream format plus fork
+# fields. It does NOT cover the experimental sm_<75 build
+# (STRATA_EXPERIMENTAL_SM60) or the STRATA_ISA_FLOOR path — pass extra flags
+# via --cmake-def if ever needed.
 #
 # Usage:
 #   tools/offline/build_engine.sh [--cuda auto|on|off] [--arch <sm-list|native>]
@@ -17,18 +18,20 @@
 #                                 [--cmake-def DEF]...  (extra -D args)
 #
 # Requirements (checked before anything runs):
-#   - vendored ggml tree at third_party/strata-ggml (engine; or $STRATA_GGML_DIR
+#   - vendored ggml tree at engine/third_party/strata-ggml (or $STRATA_GGML_DIR
 #     override): the vendored tree is proven per-file by tools/check_vendored.py;
 #     an override checkout must prove the pin via .strata-pin == LLAMA_CPP_COMMIT
-#     (setup.py) and/or a git checkout whose HEAD is the pin with a CLEAN tree
-#   - vendored llama.cpp subset at third_party/strata-llama (vision; or
-#     $STRATA_LLAMA_DIR override)
+#     (terminal/setup.py) and/or a git checkout whose HEAD is the pin with a
+#     CLEAN tree
 #   - cmake >= 3.24, ninja, C and C++ compilers, python3
 #   - for --cuda on / auto+found: nvcc and an architecture >= sm_75
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+ENGINE_ROOT="$REPO_ROOT/engine"
+TERMINAL_ROOT="$REPO_ROOT/terminal"
+ARTIFACTS="$TERMINAL_ROOT/engine"
 cd "$REPO_ROOT"
 
 die()  { echo "build_engine: ERROR: $*" >&2; exit 1; }
@@ -70,23 +73,20 @@ fi
 
 # ---------------------------------------------------------------- inputs
 
-LLAMA_CPP_COMMIT="$(grep -oP 'LLAMA_CPP_COMMIT\s*=\s*"\K[0-9a-f]{40}' setup.py)" \
-  || die "cannot read LLAMA_CPP_COMMIT from setup.py"
-GGML_INPUT="${STRATA_GGML_DIR:-$REPO_ROOT/third_party/strata-ggml}"
+LLAMA_CPP_COMMIT="$(grep -oP 'LLAMA_CPP_COMMIT\s*=\s*"\K[0-9a-f]{40}' "$TERMINAL_ROOT/setup.py")" \
+  || die "cannot read LLAMA_CPP_COMMIT from terminal/setup.py"
+GGML_INPUT="${STRATA_GGML_DIR:-$ENGINE_ROOT/third_party/strata-ggml}"
 GGML_DIR="$(cd "$GGML_INPUT" 2>/dev/null && pwd)" \
   || die "ggml tree '$GGML_INPUT' does not exist"
-LLAMA_INPUT="${STRATA_LLAMA_DIR:-$REPO_ROOT/third_party/strata-llama}"
-LLAMA_DIR="$(cd "$LLAMA_INPUT" 2>/dev/null && pwd)" \
-  || die "llama tree '$LLAMA_INPUT' does not exist — vision needs third_party/strata-llama"
 
 [ -f "$GGML_DIR/ggml/CMakeLists.txt" ] || die "$GGML_DIR has no ggml/CMakeLists.txt — not a ggml/llama.cpp tree"
-[ -d "$REPO_ROOT/third_party/strata-gguf-py" ] || die "third_party/strata-gguf-py missing — incomplete vendored layout"
+[ -d "$ENGINE_ROOT/third_party/strata-gguf-py" ] || die "engine/third_party/strata-gguf-py missing — incomplete vendored layout"
 
 # Pin proof: require .strata-pin match and/or clean git checkout at the pin.
 # A dirty checkout at the pin builds unverified content — refused.
 export GIT_NO_LAZY_FETCH=1
 PROOF=0
-if [ "$GGML_DIR" = "$REPO_ROOT/third_party/strata-ggml" ]; then
+if [ "$GGML_DIR" = "$ENGINE_ROOT/third_party/strata-ggml" ]; then
   # vendored tree: the manifest verifier hashes every file against the declared pin
   command -v python3 >/dev/null 2>&1 || die "python3 not found — required for tools/check_vendored.py"
   VOUT="$(python3 tools/check_vendored.py)" || die "tools/check_vendored.py failed: $VOUT"
@@ -192,30 +192,32 @@ if [ "$CUDA" != off ]; then
   [ -n "${CUDAHOSTCXX:-}${CXX:-}" ] && DEFS+=(-DCMAKE_CUDA_HOST_COMPILER="${CUDAHOSTCXX:-$CXX}")
 fi
 DEFS+=("${EXTRA_DEFS[@]}")
+DEFS+=(-DGGML_CCACHE=OFF)
 
 # Stale-cache guard: a cache whose key vars differ from the requested build
 # makes CMake wipe the cache mid-configure and re-run — and the re-run loses
 # the -D options (observed: STRATA_GGML_DIR came back empty → fail-closed
-# error). Detect the conflict and remove the cache ourselves, up front.
+# error). Detect the conflict and refuse — never remove preexisting files.
 if [ -f "$BUILD_DIR/CMakeCache.txt" ]; then
   cache_get() { grep -m1 "^$1:" "$BUILD_DIR/CMakeCache.txt" | cut -d= -f2-; }
   want_cuda="OFF"; [ "$CUDA" != off ] && want_cuda="ON"
   stale=0
   # the cache stores the RESOLVED absolute path ($GGML_DIR) when an override is
   # set, empty otherwise — compare against exactly what configure receives
+  [ "$(cache_get CMAKE_HOME_DIRECTORY)" = "$ENGINE_ROOT" ] || stale=1
   [ "$(cache_get STRATA_GGML_DIR)"    = "${STRATA_GGML_DIR:+$GGML_DIR}"  ] || stale=1
   [ "$(cache_get STRATA_ENABLE_CUDA)" = "$want_cuda" ] || stale=1
   if [ "$CUDA" != off ]; then
     [ "$(cache_get CMAKE_CUDA_COMPILER)" = "$NVCC_REAL" ] || stale=1
+    [ "$(cache_get CUDAToolkit_ROOT)" = "$([ "$NVROOT" = /usr ] || printf '%s' "$NVROOT")" ] || stale=1
   fi
   if [ "$stale" = 1 ]; then
-    info "build cache conflicts with requested options — removing CMakeCache.txt/CMakeFiles for a clean configure"
-    rm -f "$BUILD_DIR/CMakeCache.txt"; rm -rf "$BUILD_DIR/CMakeFiles"
+    die "stale CMake cache in $BUILD_DIR; use a fresh --build-dir"
   fi
 fi
 
-info "configure: cmake -G Ninja -S . -B $BUILD_DIR ${DEFS[*]}"
-"$CMAKE" -G Ninja -DCMAKE_MAKE_PROGRAM="$NINJA" -S "$REPO_ROOT" -B "$BUILD_DIR" "${DEFS[@]}"
+info "configure: cmake -G Ninja -S $ENGINE_ROOT -B $BUILD_DIR ${DEFS[*]}"
+"$CMAKE" -G Ninja -DCMAKE_MAKE_PROGRAM="$NINJA" -S "$ENGINE_ROOT" -B "$BUILD_DIR" "${DEFS[@]}"
 
 # One retry on failure — CUDA 13.0 ptxas intermittently fails to parse its own
 # PTX (upstream issue #45); a second build compiles only what is still missing.
@@ -225,12 +227,24 @@ if ! "$CMAKE" --build "$BUILD_DIR" --target strata -j "$JOBS"; then
 fi
 [ -x "$BUILD_DIR/strata" ] || die "build finished but $BUILD_DIR/strata is missing"
 
+# Embedded-version provenance: the binary's "engine=<version>" stamp must equal
+# the source's project() version — refuses a stale/mismatched binary without
+# executing it.
+python3 - "$ENGINE_ROOT/CMakeLists.txt" "$BUILD_DIR/strata" <<'PYEOF'
+import pathlib, re, sys
+source = re.search(r"project\(strata VERSION ([\d.]+)", pathlib.Path(sys.argv[1]).read_text())
+versions = {v.decode() for v in re.findall(rb"engine=(\d+\.\d+\.\d+(?:\.\d+)?)\n", pathlib.Path(sys.argv[2]).read_bytes())}
+if source is None or versions != {source.group(1)}:
+    sys.exit(f"build_engine: ERROR: embedded engine version {sorted(versions)} does not match source")
+PYEOF
+
 # ---------------------------------------------------------------- vision
 
 VEXE=""
 if [ "$VISION" != off ]; then
   VDIR="$REPO_ROOT/build-vision"
-  VDEFS=(-DCMAKE_BUILD_TYPE=Release -DLLAMA_DIR="$LLAMA_DIR" -DSTRATA_PORTABLE=OFF)
+  # v0.2.17 vision builds its own tower — no llama.cpp input, oracles stay off.
+  VDEFS=(-DCMAKE_BUILD_TYPE=Release -DSTRATA_VISION_ORACLES=OFF -DSTRATA_PORTABLE=OFF)
   if [ "$VISION" = gpu ]; then
     VDEFS+=(-DSTRATA_VISION_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="$ARCHS"
             -DCMAKE_CUDA_COMPILER="$(readlink -f "$NVCC")")
@@ -239,8 +253,8 @@ if [ "$VISION" != off ]; then
     VDEFS+=(-DSTRATA_VISION_CUDA=OFF)
   fi
   [ -n "${CXX:-}" ] && VDEFS+=(-DCMAKE_CXX_COMPILER="$CXX")
-  info "vision build ($VISION): tools/vision -> $VDIR"
-  "$CMAKE" -G Ninja -DCMAKE_MAKE_PROGRAM="$NINJA" -S "$REPO_ROOT/tools/vision" -B "$VDIR" "${VDEFS[@]}"
+  info "vision build ($VISION): terminal/tools/vision -> $VDIR"
+  "$CMAKE" -G Ninja -DCMAKE_MAKE_PROGRAM="$NINJA" -S "$TERMINAL_ROOT/tools/vision" -B "$VDIR" "${VDEFS[@]}"
   "$CMAKE" --build "$VDIR" --target strata-vision -j "$JOBS"
   VEXE="$VDIR/bin/strata-vision"
   [ -x "$VEXE" ] || die "vision build finished but $VEXE is missing"
@@ -248,52 +262,87 @@ fi
 
 # ---------------------------------------------------------------- staging
 
-mkdir -p engine
-cp -a "$BUILD_DIR/strata" engine/strata
-if [ -f "$BUILD_DIR/libstrata_kq.so" ]; then
-  cp -a "$BUILD_DIR/libstrata_kq.so" engine/libstrata_kq.so
-else
-  rm -f engine/libstrata_kq.so   # a stale one of another build would only confuse
+mkdir -p "$ARTIFACTS"
+# The upstream CUDA backend only ships mmq_absent.cpp — no libstrata_kq.so is
+# staged anymore. A legacy copy in the artifact dir is an error, not something
+# to silently delete.
+if [ -e "$ARTIFACTS/libstrata_kq.so" ] || [ -L "$ARTIFACTS/libstrata_kq.so" ]; then
+  die "legacy libstrata_kq.so present in $ARTIFACTS — remove it deliberately before staging"
 fi
+if [ -z "$VEXE" ] && { [ -e "$ARTIFACTS/strata-vision" ] || [ -L "$ARTIFACTS/strata-vision" ]; }; then
+  die "stale vision binary in $ARTIFACTS; use a clean artifact directory for --vision off"
+fi
+cp -a "$BUILD_DIR/strata" "$ARTIFACTS/strata"
 if [ -n "$VEXE" ]; then
-  cp -a "$VEXE" engine/strata-vision
+  cp -a "$VEXE" "$ARTIFACTS/strata-vision"
 fi
 
 # Provenance stamp — same fields as upstream BUILD.json, plus fork additions.
 # The embedded engine version is read from the binary, the source version from
-# project() in CMakeLists.txt (upstream's binary_engine_version/source_version).
-python3 - "$REPO_ROOT" "$GGML_DIR" "$LLAMA_CPP_COMMIT" "$ARCHS" "$VISION" "${NVCC:-none}" <<'PYEOF'
+# project() in engine/CMakeLists.txt (upstream's binary_engine_version/
+# source_version). Source fingerprints hash under the two source roots —
+# engine/ for engine parts, terminal/ for tools/* — like upstream
+# terminal/setup.py.
+python3 - "$REPO_ROOT" "$GGML_DIR" "$LLAMA_CPP_COMMIT" "$ARCHS" "$VISION" "${NVCC:-none}" "$BUILD_DIR" <<'PYEOF'
 import hashlib, json, pathlib, re, sys
-root, ggml, pin, archs, vision, nvcc = sys.argv[1:]
+root, ggml, pin, archs, vision, nvcc, build = sys.argv[1:]
 root = pathlib.Path(root)
+engine_root = root / 'engine'
+terminal_root = root / 'terminal'
 
 def source_hash(parts):
     h = hashlib.sha256(pin.encode())
     for part in parts:
-        base = root / part
+        top = terminal_root if part.startswith('tools/') else engine_root
+        base = top / part
         for f in [base] if base.is_file() else sorted(x for x in base.rglob('*') if x.is_file()):
-            h.update(f.relative_to(root).as_posix().encode() + b'\0'
+            h.update(f.relative_to(top).as_posix().encode() + b'\0'
                      + f.read_bytes().replace(b'\r\n', b'\n'))
     return h.hexdigest()[:16]
 
-m = re.search(r"project\(strata VERSION ([\d.]+)", (root / 'CMakeLists.txt').read_text())
+m = re.search(r"project\(strata VERSION ([\d.]+)", (engine_root / 'CMakeLists.txt').read_text())
 ver = m.group(1) if m else '0'
 vision_stamp = {'cpu': 'cpu', 'gpu': 'gpu'}.get(vision, 'none')   # upstream vocabulary
 arch_list = [int(a) if a.isdigit() else a for a in archs.split(';') if a]
 arch_list.sort(key=lambda x: (not isinstance(x, int), x))
 bindir = pathlib.Path(nvcc).resolve().parent if nvcc != 'none' else None
 dirs = [] if bindir is None else [str(d) for d in (bindir, bindir / 'x64', bindir.parent / 'lib64') if d.is_dir()]
+cuda_compiler = cuda_compiler_version = None
+if bindir is not None:
+    # The stamp must describe the compiler CMake actually used — read it from
+    # generated text (cache entry + compiler probe file), never by executing
+    # or evaluating the compiler itself.
+    m = re.search(r'(?m)^CMAKE_CUDA_COMPILER:[^=\n]+=(.+)$',
+                  (pathlib.Path(build) / 'CMakeCache.txt').read_text())
+    if m is None:
+        sys.exit('build_engine: ERROR: CMAKE_CUDA_COMPILER missing in CMakeCache.txt')
+    cache_compiler = m.group(1).strip()
+    compat = set()
+    for f in pathlib.Path(build).glob('CMakeFiles/*/CMakeCUDACompiler.cmake'):
+        text = f.read_text()
+        comp = re.search(r'(?m)^set\(CMAKE_CUDA_COMPILER "([^"]+)"\)$', text)
+        if comp is None or pathlib.Path(comp.group(1)).resolve() != pathlib.Path(cache_compiler).resolve():
+            continue
+        cver = re.search(r'(?m)^set\(CMAKE_CUDA_COMPILER_VERSION "([0-9.]+)"\)$', text)
+        if cver is not None:
+            compat.add((cache_compiler, cver.group(1)))
+    if len(compat) != 1:
+        sys.exit('build_engine: ERROR: CUDA compiler stamp missing or ambiguous')
+    cuda_compiler, cuda_compiler_version = compat.pop()
 stamp = {"source": "local-fork", "version": ver, "archs": arch_list,
          "vision": vision_stamp, "cuda_dirs": dirs,
-         "src": source_hash(('CMakeLists.txt', 'cmake', 'src', 'include', 'third_party/ggml')),
-         "vision_src": source_hash(('tools/vision',)) if vision != 'off' else None,
+         "cuda_compiler": cuda_compiler, "cuda_compiler_version": cuda_compiler_version,
+         "src": source_hash(('CMakeLists.txt', 'cmake', 'src', 'include',
+                             'third_party/ggml', 'third_party/strata-ggml')),
+         "vision_src": source_hash(('tools/vision', 'third_party/stb')) if vision != 'off' else None,
          "ggml_commit": pin, "ggml_dir": ggml}
-(root / 'engine' / 'BUILD.json').write_text(json.dumps(stamp, indent=1))
-print('engine/BUILD.json:', json.dumps(stamp))
+(terminal_root / 'engine' / 'BUILD.json').write_text(json.dumps(stamp, indent=1))
+print('terminal/engine/BUILD.json:', json.dumps(stamp))
 PYEOF
 
 echo
-info "BUILD COMPLETE — engine/ staged:"
-for f in engine/strata engine/libstrata_kq.so engine/strata-vision; do
-  [ -f "$f" ] && sha256sum "$f" | sed 's/^/  /'
-done
+info "BUILD COMPLETE — $ARTIFACTS staged:"
+sha256sum "$ARTIFACTS/strata" | sed 's/^/  /'
+if [ -n "$VEXE" ]; then
+  sha256sum "$ARTIFACTS/strata-vision" | sed 's/^/  /'
+fi

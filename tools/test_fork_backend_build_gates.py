@@ -16,10 +16,10 @@ from types import SimpleNamespace
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
-QUELLE_MAC = (ROOT / "metal" / "setup_mac.py").read_text(encoding="utf-8")
-QUELLE_SYCL = (ROOT / "sycl" / "setup_intel.py").read_text(encoding="utf-8")
+QUELLE_MAC = (ROOT / "engine" / "metal" / "setup_mac.py").read_text(encoding="utf-8")
+QUELLE_SYCL = (ROOT / "engine" / "sycl" / "setup_intel.py").read_text(encoding="utf-8")
 
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "terminal"))
 from strata_control import acquisition  # noqa: E402
 
 
@@ -50,6 +50,7 @@ class TestBackendBuildGates(unittest.TestCase):
         fns = _lade()
         self.S = SimpleNamespace(
             acquisition=acquisition,
+            ggml_defs=lambda _llama: [],
             ensure_build_tools=mock.Mock(side_effect=PrepSentinel("ensure_build_tools")),
             cmake_build=mock.Mock(side_effect=PrepSentinel("cmake_build")),
             source_version=lambda: "v-fixture",

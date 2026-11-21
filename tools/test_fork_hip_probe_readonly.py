@@ -17,7 +17,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
-QUELLE = (ROOT / "setup.py").read_text(encoding="utf-8")
+QUELLE = (ROOT / "terminal" / "setup.py").read_text(encoding="utf-8")
 
 FNS = ["hip_devices", "hip_probe_path", "engine_env", "hip_lib_dirs",
        "hip_runtime_beside_exe", "hip_match", "hip_card",
